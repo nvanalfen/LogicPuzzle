@@ -402,7 +402,7 @@ def exclude_n_of_n(same_sets, elements, cat_A, cat_B, all_sets, all_categories):
 
 ##### END SOLUTION FUNCTIONS ##################################################
 
-# Get the cominded lengths of all of the sets
+# Get the combined lengths of all of the sets
 def get_total_length(all_sets):
     size = 0
     for key in all_sets:
