@@ -54,18 +54,11 @@ class LogicPuzzle:
     
     # CONVENIENCE FUNCTIONS - FOR USE WITHIN THE OTHER FUNCTIONS ##############
     
-    # Given an element, return the set that contains the element
-    # TODO : I'm not sure about this, I think I made it wrong
-    def get_parent_set(self, element):
-        for A in self.sets:
-            if element in A:
-                return A
-    
-    # Returns the full list of elements to which element belongs
+    # Returns the full set of elements to which element belongs
     def get_full_parent_set(self, element):
         for key in self.categories:
             if element in self.categories[key]:
-                return self.categories[key]
+                return set(self.categories[key])
     
     # Returns the label of the category to which element belongs
     def get_parent_set_category(self, element):
@@ -159,4 +152,46 @@ class LogicPuzzle:
             
         return False
     
+    # Type 5a and 5b clue solution
+    # With elements el_A and el_B belonging to sets A and B respectively (A and B may be the same),
+    # with another set C different from A and B containing numerical values,
+    # knowing that the final element of set el_A on C is greater than the 
+    # final element of set el_B on C,
+    # narrows down the remaining possibilities of el_A on C and el_B on C
+    # if no value is given, we only know that the final element of el_A on C is greater than
+    # the final element of el_B on C
+    def greater_than(self, el_A, el_B, category, value=None):
+        # el_A and el_B in separate categories => exclude a and b from each other
+        category_A = self.get_parent_set_category(el_A)
+        category_B = self.get_parent_set_category(el_B)
+        set_A = self.sets[ (category_A, el_A, category) ]
+        set_B = self.sets[ (category_B, el_B, category) ]
+        
+        # If el_A on category is greater than el_B on category and they are not in the same category
+        # then el_A on B does not include el_B and el_B on A does not include el_A
+        if category_A != category_B:
+            self.set_not_element(el_A, el_B)
+            
+        if value is None:
+            set_A = set( [ s for s in set_A if s > min(set_B) ] )
+            set_B = set( [ s for s in set_B if s < max(set_A) ] )
+        else:
+            set_A = set_A & set( [ s+value for s in set_B ] )
+            set_B = set_B & set( [ s-value for s in set_A ] )
+        
+        self.sets[ (category_A, el_A, category) ] = set_A
+        self.sets[ (category_B, el_B, category) ] = set_B
+        self.return_exclusion(category_A, el_A, category)
+        self.return_exclusion(category_B, el_B, category)
+        
+        if len(set_A) == 1 or len(set_B) == 1:
+            return True     # This clue can give no more information
+        return False        # There is still information to be gained
+    
     # OTHER LOGIC FUNCTIONS - IN ADDITION TO THE CLUES, USE LOGIC TO DRAW CONCLUSIONS
+    
+    # If (cat_A, el_A, cat_B) does not contain element el_B1, then (cat_B, el_B1, cat_A) cannot contain el_A
+    # Remove el_A from the sets of the elements not included in el_A's set
+    def return_exclusion(self, cat_A, el_A, cat_B):
+        for el_B in self.complement( self.sets[ (cat_A, el_A, cat_B) ], set(self.categories[cat_B]) ):
+            self.set_not_element(el_B, el_A)
