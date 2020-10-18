@@ -17,12 +17,16 @@ import numpy as np
 # Type 5a:      AiB > AjB
 # Type 5b:      AiB = AiB + x
 
+# TODO : Perform more thorough tests on multi_is_one_of
+
 # Class to hold a logic puzzle and the functions to solve it
 class LogicPuzzle:
     def __init__(self):
         self.categories = {}        # dict from category name to list of elements in that category
         self.sets = {}              # dict from (categor_A_name, element_A_name, category_B_name) to set of elements in category_B that may be linked to element_A from category_A
-        self.clues = []             # list of ( clue_function, [args for clue_function] )
+        self.clues = []             # list of [ clue_function, [args for clue_function], solved ]
+        self.solutions = {}         # 
+        self.debug_info = None
     
     # SETUP FUNCTIONS - SETS UP THE LOGIC PUZZLE ##############################
         
@@ -152,6 +156,86 @@ class LogicPuzzle:
             
         return False
     
+    # Type 4 clue solution
+    def multi_is_one_of(self, elements_A, elements_B):
+        # Exclude all elements in elements_A from the other elements in elements_A, same for B
+        self.mutual_exclude(elements_A)
+        self.mutual_exclude(elements_B)
+        self.check_single_mapping(elements_A, elements_B)
+        pairings = self.pair_categories(elements_A, elements_B)
+        return self.remove_pairs(elements_A, elements_B, pairings)
+    
+    # Exclude elements in a list from the sets of the other elements in that list
+    def mutual_exclude(self, elements):
+        for el_A in elements:
+            category_A = self.get_parent_set_category(el_A)
+            for el_B in elements:
+                category_B = self.get_parent_set_category(el_B)
+                if category_A != category_B:
+                    set_A = self.sets[ (category_A, el_A, category_B) ]
+                    set_A = self.exclude_element(set_A, el_B)
+                    self.sets[ (category_A, el_A, category_B) ] = set_A
+    
+    # Check to see if everything in elements_B belongs to the same set, if so, set
+    # the sets of elements_A on category_B to only the elements in elements_B
+    def check_single_mapping(self, elements_A, elements_B):
+        cats_B = set( [ self.get_parent_set_category(el) for el in elements_B ] )
+        if len(cats_B) == 1:
+            cat_B = cats_B.pop()
+            for el_A in elements_A:
+                cat_A = self.get_parent_set_category(el_A)
+                set_A = self.sets[ (cat_A, el_A, cat_B) ]
+                set_A = set_A & set(elements_B)
+                self.sets[ (cat_A, el_A, cat_B) ] = set_A
+    
+    # Pair any elements in elements_A to those in elements_B when there is enough information
+    def pair_categories(self, elements_A, elements_B):
+        categories_B = list( set( [ self.get_parent_set_category(el) for el in elements_B ] ) )
+        pairings = []
+        for el_A in elements_A:
+            category_A = self.get_parent_set_category(el_A)
+            for cat in categories_B:
+                if cat != category_A:
+                    #universal = all_sets[ (category_A, el_A, cat) ]    # TODO make sure this is the right universal set
+                    universal = set( [ i for i in elements_B if i in self.categories[cat] ] )
+                    seed_set = set()
+                    # yes, elements_A, not B, look at others in the same list
+                    for el_B in elements_A:
+                        if el_A != el_B:
+                            category_B = self.get_parent_set_category(el_B)
+                            if category_B != cat:
+                                seed_set = seed_set | self.sets[ (category_B, el_B, cat) ]
+                    
+                    seed_set = self.complement(seed_set, universal)
+                    set_A = self.sets[ (category_A, el_A, cat) ]
+                    res = set_A & seed_set
+                    
+                    # If the resulting set is empty, there aren't enough constraints to specify
+                    if len(res) != 0:
+                        self.sets[ (category_A, el_A, cat) ] = res       # Should this be inside the len == 1?
+                        if len(res) == 1:
+                            pairings.append( (el_A, res.pop()) )
+        return pairings
+    
+    # If there are pairs, remove them from elements_A and elements_B (we don't need to solve them again)
+    # If elements_A and elements_B are emptied, the clue is fully solved
+    def remove_pairs(self, elements_A, elements_B, pairings):
+        for pair in pairings:
+            elements_A.remove( pair[0] )
+            elements_B.remove( pair[1] )
+        if len(elements_A) == 0 and len(elements_B) == 0:
+            return True
+        elif len(elements_A) == 1 and len(elements_B) == 1:
+            el_A = elements_A.pop()
+            el_B = elements_B.pop()
+            cat_A = self.get_parent_set_category(el_A)
+            cat_B = self.get_parent_set_category(el_B)
+            set_A = self.sets[ (cat_A, el_A, cat_B) ]
+            set_A = self.is_element(set_A, el_B)
+            self.sets[ (cat_A, el_A, cat_B) ] = set_A
+            return True
+        return False
+    
     # Type 5a and 5b clue solution
     # With elements el_A and el_B belonging to sets A and B respectively (A and B may be the same),
     # with another set C different from A and B containing numerical values,
@@ -195,3 +279,114 @@ class LogicPuzzle:
     def return_exclusion(self, cat_A, el_A, cat_B):
         for el_B in self.complement( self.sets[ (cat_A, el_A, cat_B) ], set(self.categories[cat_B]) ):
             self.set_not_element(el_B, el_A)
+            
+    # Because the sets are symmetric, for any set element_A on category_B with only one element_B,
+    # element_A should be the only element of the set element_B on category_A
+    def symmetrize(self):
+        for key in self.sets:
+            if len( self.sets[ key ] ) == 1:
+                # For solved sets, make sure the relationship is reciprocated
+                cat_A, el_A, cat_B = self.unpack_key(key)
+                el_B = None
+                for el in self.sets[key]:
+                    el_B = el
+                
+                self.set_element(el_B, el_A)
+    
+    # Applies the transitive relationship. If A is B and B is C, the A is C
+    # Also, if A is B and B is not C, A is not C
+    def chain_relation(self):
+        for key in self.sets:
+            if len( self.sets[key] ) == 1:
+                cat_A, el_A, cat_B = self.unpack_key(key)
+                el_B = None
+                for el in self.sets[key]:
+                    el_B = el
+                    
+                for cat in self.categories:
+                    if cat != cat_A and cat != cat_B:
+                        set_B = self.sets[ (cat_B, el_B, cat) ]
+                        # If we know it is another element, link el_A to that element
+                        if len(set_B) == 1:
+                            self.chain_include(el_A, set_B)
+                        else:
+                            # Make sure all negative relationships are reciprocated
+                            self.chain_exclude(el_A, cat_B, set_B)
+    
+    # If el_A links to el_B, and el_B links to el_C, link el_A to el_C
+    def chain_include(self, el_A, set_B):
+        el_C = None
+        for el in set_B:
+            el_C = el
+        self.set_element(el_A, el_C)
+    
+    # If el_A links to el_B, and el_B cannot be certain elements els_C, then el_A cannot be those els_C either
+    def chain_exclude(self, el_A, cat_B, set_B):
+        for el in self.complement( set_B, set(self.categories[cat_B]) ):
+            self.set_not_element(el_A, el)          # Not in set_B, so can't link to el_A
+    
+    # SOLUTION FUNCTIONS ######################################################
+            
+    def solve(self):
+        
+        change = 1
+        
+        while change:
+            before = self.get_total_length()
+            
+            cancel = self.solve_clues()
+            if cancel:
+                return
+            self.symmetrize()
+            self.chain_relation()
+            
+            after = self.get_total_length()
+            change = before - after
+    
+    # Iterate through the clues and solve each one that's not already solved
+    def solve_clues(self):
+        
+        for clue in self.clues:
+            if not clue[-1]:
+                sets_before = dict(self.sets)
+                null_before = self.contains_null()
+                func = clue[0]
+                args = clue[1]
+                res = func( *args )
+                clue[-1] = res
+                sets_after = dict(self.sets)
+                null_after = self.contains_null()
+                if not null_before and null_after:
+                    print(func)
+                    print(args)
+                    debug_info = [sets_before, sets_after]
+                    return True
+        return False
+    
+    # Solved if each set is only 1 element long
+    def is_solved(self):
+        solved_length = len(self.sets)
+        return solved_length == self.get_total_length()
+    
+    def set_solutions(self):
+        if not self.is_solved():
+            return
+    
+    def contains_null(self):
+        contains = False
+        for key in self.sets:
+            if len(self.sets[key]) == 0:
+                return True
+        return False
+
+def test():
+    a = LogicPuzzle()
+    a.read_categories("Book1.csv")
+    a.clues.append( [ a.set_element, ["Pam Powell", "juicer"], False ] )
+    a.clues.append( [ a.set_element, [500, "blu-ray"], False ] )
+    a.clues.append( [ a.multi_is_one_of, [ ["Mitch Mayo", "juicer"], [475, 450] ], False ] )
+    a.clues.append( [ a.is_one_of, [ "Kit Kelley", "juicer", 400 ], False ] )
+    a.clues.append( [ a.is_one_of, [ "Ned Norris", "blender", 475 ], False ] )
+    a.clues.append( [ a.set_not_element, [ 475, "planter" ], False ] )
+    a.clues.append( [ a.greater_than, [ "Mitch Mayo", "blender", "Prices", 50 ], False ] )
+    return a
