@@ -163,6 +163,7 @@ class LogicPuzzle:
         self.mutual_exclude(elements_B)
         self.check_single_mapping(elements_A, elements_B)
         pairings = self.pair_categories(elements_A, elements_B)
+        
         return self.remove_pairs(elements_A, elements_B, pairings)
     
     # Exclude elements in a list from the sets of the other elements in that list
@@ -205,16 +206,17 @@ class LogicPuzzle:
                             category_B = self.get_parent_set_category(el_B)
                             if category_B != cat:
                                 seed_set = seed_set | self.sets[ (category_B, el_B, cat) ]
-                    
+
                     seed_set = self.complement(seed_set, universal)
                     set_A = self.sets[ (category_A, el_A, cat) ]
                     res = set_A & seed_set
                     
                     # If the resulting set is empty, there aren't enough constraints to specify
                     if len(res) != 0:
-                        self.sets[ (category_A, el_A, cat) ] = res       # Should this be inside the len == 1?
+                        self.sets[ (category_A, el_A, cat) ] = set(res)       # Should this be inside the len == 1?
                         if len(res) == 1:
                             pairings.append( (el_A, res.pop()) )
+        
         return pairings
     
     # If there are pairs, remove them from elements_A and elements_B (we don't need to solve them again)
@@ -361,27 +363,28 @@ class LogicPuzzle:
     
     # SOLUTION FUNCTIONS ######################################################
             
-    def solve(self):
+    # TODO : multi_is_one_of is setting some sets to empty sets. Track through and see where this happens
+    # A.txt gives all sets before the problem loop, clue_2.txt gives all the sets after multi_is_one_of runs
+    def solve(self, f_name="Output.txt"):
         
         change = 1
-        loop = 1
         while change:
-            print(loop)
-            loop += 1
+            print("Loop")
             before = self.get_total_length()
             
-            cancel = self.solve_clues()
-            if cancel:
-                return
+            self.solve_clues()
+
             self.symmetrize()                   #
             self.chain_relation()               #
             self.return_exclusion_all()         #
-            write(self.sets, "After.txt")
             self.n_of_n()
-            write(self.sets, "After2.txt")
-            #return
+
             after = self.get_total_length()
             change = before - after
+        
+        if self.is_solved():
+            self.set_solutions()
+            self.write_solutions(f_name)
     
     # Iterate through the clues and solve each one that's not already solved
     def solve_clues(self):
@@ -392,17 +395,32 @@ class LogicPuzzle:
                 args = clue[1]
                 res = func( *args )
                 clue[-1] = res
-        return False
     
     def set_solutions(self):
         if not self.is_solved():
             return
+        primary_category = list(self.categories.keys())[0]
+        self.solutions = {}
+        for el in self.categories[primary_category]:
+            self.solutions[el] = []
+        
+        for cat in self.categories.keys():
+            if cat != primary_category:
+                for key in self.solutions:
+                    self.solutions[key].append( list( self.sets[(primary_category, key, cat)] )[0] )
+                    
+    def write_solutions(self, f_name):
+        file = open(f_name, "w")
+        for key in self.solutions:
+            file.write( str(key) )
+            file.write( " :\t" )
+            file.write( str(self.solutions[key]) )
+            file.write("\n")
+        file.close()
     
     def contains_null(self):
-        contains = False
         for key in self.sets:
             if len(self.sets[key]) == 0:
-                print("HERE")
                 return True
         return False
 
@@ -416,6 +434,26 @@ def test():
     a.clues.append( [ a.is_one_of, [ "Ned Norris", "blender", 475 ], False ] )
     a.clues.append( [ a.set_not_element, [ 475, "planter" ], False ] )
     a.clues.append( [ a.greater_than, [ "Mitch Mayo", "blender", "Prices", 50 ], False ] )
+    
+    a.solve()
+    return a
+
+def test2():
+    a = LogicPuzzle()
+    a.read_categories("Book2.csv")
+    a.clues.append( [ a.is_one_of, [12, 33, "Lois"], False ] )
+    a.clues.append( [ a.set_not_element, [30, 10], False ] )
+    a.clues.append( [ a.set_not_element, ["Dublin", 12], False ] )
+    a.clues.append( [ a.set_not_element, ["Dublin", "Marie"], False ] )
+    a.clues.append( [ a.set_not_element, [12, "Marie"], False ] )
+    a.clues.append( [ a.set_not_element, ["Lois", "Boston"], False ] )
+    a.clues.append( [ a.set_element, [ 33, 2 ], False ] )
+    a.clues.append( [ a.greater_than, [ 10, "Los Angeles", "Wins" ], False ] )
+    a.clues.append( [ a.multi_is_one_of, [ ["Glasgow", 12], ["Annie", 36] ], False  ] )
+    a.clues.append( [ a.set_element, [ "Marie", 2 ], False ] )
+    a.clues.append( [ a.greater_than, [ "Gina", 4, "Wins", 3 ], False ] )
+    
+    a.solve()
     return a
 
 # Debug functionto see the sets
@@ -426,4 +464,9 @@ def write(data, f_name):
         file.write("\t")
         file.write(str(data[key]))
         file.write("\n")
+    file.close()
+    
+def write2(data, f_name):
+    file = open(f_name, "w")
+    file.write(str(data))
     file.close()
