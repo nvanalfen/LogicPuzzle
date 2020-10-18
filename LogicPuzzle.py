@@ -274,6 +274,13 @@ class LogicPuzzle:
     
     # OTHER LOGIC FUNCTIONS - IN ADDITION TO THE CLUES, USE LOGIC TO DRAW CONCLUSIONS
     
+    def return_exclusion_all(self):
+        for cat_A in self.categories:
+            for el_A in self.categories[cat_A]:
+                for cat_B in self.categories:
+                    if cat_A != cat_B:
+                        self.return_exclusion(cat_A, el_A, cat_B)
+    
     # If (cat_A, el_A, cat_B) does not contain element el_B1, then (cat_B, el_B1, cat_A) cannot contain el_A
     # Remove el_A from the sets of the elements not included in el_A's set
     def return_exclusion(self, cat_A, el_A, cat_B):
@@ -305,13 +312,16 @@ class LogicPuzzle:
                     
                 for cat in self.categories:
                     if cat != cat_A and cat != cat_B:
-                        set_B = self.sets[ (cat_B, el_B, cat) ]
+                        combo = self.sets[(cat_A, el_A, cat)] & self.sets[(cat_B, el_B, cat)]
+                        self.sets[(cat_A, el_A, cat)] = set(combo)
+                        self.sets[(cat_B, el_B, cat)] = set(combo)
+                        #set_B = self.sets[ (cat_B, el_B, cat) ]
                         # If we know it is another element, link el_A to that element
-                        if len(set_B) == 1:
-                            self.chain_include(el_A, set_B)
-                        else:
+                        #if len(set_B) == 1:
+                        #    self.chain_include(el_A, set_B)
+                        #else:
                             # Make sure all negative relationships are reciprocated
-                            self.chain_exclude(el_A, cat_B, set_B)
+                        #    self.chain_exclude(el_A, cat_B, set_B)
     
     # If el_A links to el_B, and el_B links to el_C, link el_A to el_C
     def chain_include(self, el_A, set_B):
@@ -325,21 +335,51 @@ class LogicPuzzle:
         for el in self.complement( set_B, set(self.categories[cat_B]) ):
             self.set_not_element(el_A, el)          # Not in set_B, so can't link to el_A
     
+    # if n sets from a category have the same n elements, then the remaining sets cannot have those
+    # n elements
+    def n_of_n(self):
+        cats = list( self.categories.keys() )
+        for cat_A in cats:
+            for cat_B in cats:
+                if cat_A != cat_B:
+                    for el_AA in self.categories[cat_A]:
+                        set_A = self.sets[ (cat_A, el_AA, cat_B) ]
+                        same = [el_AA]
+                        for el_AB in self.categories[cat_A]:
+                            if el_AA != el_AB and self.sets[ (cat_A, el_AB, cat_B) ] == set_A:
+                                same.append(el_AB)
+                        
+                        # n sets of n elements but not just all of the possibilities
+                        if len(same) != len(self.categories) and len(same) == len(set_A):
+                            self.exclude_n_of_n(same, set_A, cat_A, cat_B)
+    
+    def exclude_n_of_n(self, same_sets, elements, cat_A, cat_B):
+        for el_A in self.categories[cat_A]:
+            if not el_A in same_sets:
+                for el_B in elements:
+                    self.set_not_element(el_A, el_B)
+    
     # SOLUTION FUNCTIONS ######################################################
             
     def solve(self):
         
         change = 1
-        
+        loop = 1
         while change:
+            print(loop)
+            loop += 1
             before = self.get_total_length()
             
             cancel = self.solve_clues()
             if cancel:
                 return
-            self.symmetrize()
-            self.chain_relation()
-            
+            self.symmetrize()                   #
+            self.chain_relation()               #
+            self.return_exclusion_all()         #
+            write(self.sets, "After.txt")
+            self.n_of_n()
+            write(self.sets, "After2.txt")
+            #return
             after = self.get_total_length()
             change = before - after
     
@@ -348,25 +388,11 @@ class LogicPuzzle:
         
         for clue in self.clues:
             if not clue[-1]:
-                sets_before = dict(self.sets)
-                null_before = self.contains_null()
                 func = clue[0]
                 args = clue[1]
                 res = func( *args )
                 clue[-1] = res
-                sets_after = dict(self.sets)
-                null_after = self.contains_null()
-                if not null_before and null_after:
-                    print(func)
-                    print(args)
-                    debug_info = [sets_before, sets_after]
-                    return True
         return False
-    
-    # Solved if each set is only 1 element long
-    def is_solved(self):
-        solved_length = len(self.sets)
-        return solved_length == self.get_total_length()
     
     def set_solutions(self):
         if not self.is_solved():
@@ -376,6 +402,7 @@ class LogicPuzzle:
         contains = False
         for key in self.sets:
             if len(self.sets[key]) == 0:
+                print("HERE")
                 return True
         return False
 
@@ -390,3 +417,13 @@ def test():
     a.clues.append( [ a.set_not_element, [ 475, "planter" ], False ] )
     a.clues.append( [ a.greater_than, [ "Mitch Mayo", "blender", "Prices", 50 ], False ] )
     return a
+
+# Debug functionto see the sets
+def write(data, f_name):
+    file = open(f_name, "w")
+    for key in data:
+        file.write(str(key))
+        file.write("\t")
+        file.write(str(data[key]))
+        file.write("\n")
+    file.close()
