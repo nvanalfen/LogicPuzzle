@@ -23,8 +23,16 @@ class LogicPuzzle:
                 row = line.split(":")
                 title = row[0].strip()
                 values = set( [ val.strip() for val in row[1].split(",") ] )
+
+                # Try to cast values to float, otherwise stay categorical
+                try:
+                    temp = set( [ float(val) for val in values ] )
+                    values = temp
+                except:
+                    pass
+
                 self.categories.append( title )
-                self.category_values[ title ]= values
+                self.category_values[ title ] = values
         except:
             print("Error")
 
