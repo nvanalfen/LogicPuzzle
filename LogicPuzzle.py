@@ -47,9 +47,9 @@ class LogicPuzzle:
             for j in range(len(self.categories))[i+1:]:
                 cat_B = self.categories[j]
                 for val in self.category_values[ cat_A ]:
-                    self.full_sets[ ( cat_A, val, cat_B ) ] = self.category_values[ cat_B ]
+                    self.full_sets[ ( cat_A, val, cat_B ) ] = set( self.category_values[ cat_B ] )
                 for val in self.category_values[ cat_B ]:
-                    self.full_sets[ ( cat_B, val, cat_A ) ] = self.category_values[ cat_A ]
+                    self.full_sets[ ( cat_B, val, cat_A ) ] = set( self.category_values[ cat_A ] )
     
     ##### Auxilliary Functions #########################################################################################################
 
@@ -73,6 +73,8 @@ class LogicPuzzle:
 
     # Checks the completion of the puzzle
     def is_complete(self):
+        if len( self.full_sets ) == 0:
+            return False
         return all( [ len( self.full_sets[key] ) == 1 for key in self.full_sets ] )
     
     ##### Rule Functions ###############################################################################################################
