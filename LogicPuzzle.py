@@ -61,7 +61,7 @@ class LogicPuzzle:
     
     # Returns a subset of a where each element is larger than min(b), and subset of b where each element is less that max(a)
     # If val is not None, return a intersect (b + val) and b intersect (a - val)
-    def subset(a, b, val=None):
+    def subset(self, a, b, val=None):
         if val is None:
             sub_a = set( [ x for x in a if x > min(b) ] )
             sub_b = set( [ x for x in b if x < max(a) ] )
@@ -70,6 +70,14 @@ class LogicPuzzle:
             sub_b = b & set( [ x-val for x in a ] )
         
         return sub_a, sub_b
+    
+    # Checks how many elements of M_star map to a given category
+    def get_possible_M_star(self, cat_A, el_A, M_star):
+        possible = []
+        for cat_B, el_B in M_star:
+            if el_B in self.full_sets[ (cat_A, el_A, cat_B) ]:
+                possible.append( (cat_B, el_B) )
+        return possible
 
     # Checks the completion of the puzzle
     def is_complete(self):
@@ -147,15 +155,28 @@ class LogicPuzzle:
     
     # Rule 4
     # Given a list of (category, element) tuples (N_star), and a similar list for M_star
-    def list_to_list(self, N_star, M_star):
+    def list_to_list(self, N_star, M_star, inner=False):
         # Elements in the same list cannot be each other
         for cat_A, el_A in N_star:
             for cat_B, el_B in N_star:
                 if (cat_A, el_A) != (cat_B, el_B):
                     self.a_is_not_b(cat_A, el_A, cat_B, el_B)
-        for cat_A, el_A in M_star:
-            for cat_B, el_B in M_star:
-                if (cat_A, el_A) != (cat_B, el_B):
-                    self.a_is_not_b(cat_A, el_A, cat_B, el_B)
+        
+        for cat_A, el_A in N_star:
+            possible_M_star = self.get_possible_M_star(cat_A, el_A, M_star)
+            if len(possible_M_star) == 1:
+                cat_B, el_B = possible_M_star[0]
+                self.a_is_b(cat_A, el_A, cat_B, el_B)
+
+        if not inner:
+            self.list_to_list(M_star, N_star, inner=True)
+
+    # Rule 5
+    # Assuming (cat_A, el_A, cat_C) is the set said to be larger than (cat_B, el_B, cat_C)
+    def a_greater_than_b(self, cat_A, el_A, cat_B, el_B, cat_C, val=None):
+        self.a_is_not_b(cat_A, el_A, cat_B, el_B)
+        self.full_sets[ (cat_A, el_A, cat_C) ] = self.subset( self.full_sets[ (cat_A, el_A, cat_C) ], 
+                                                                self.full_sets[ (cat_B, el_B, cat_C) ], 
+                                                                val=val )
 
     ##### General Logic Functions ######################################################################################################
