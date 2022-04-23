@@ -110,6 +110,7 @@ class LogicPuzzle:
     #                       -> (cat_A, el_A, cat_C) = (cat_A, el_A, cat_C) intersect ( (cat_B, el_B, cat_C) + x )
     #                       -> (cat_B, el_B, cat_C) = (cat_B, el_B, cat_C) intersect ( (cat_A, el_A, cat_C) - x )
 
+    # Rule 1
     def a_is_b(self, cat_A, el_A, cat_B, el_B, inner=False):
         self.full_sets[ (cat_A, el_A, cat_B) ] = set([el_B])
         for val in self.category_values[cat_A]:
@@ -120,7 +121,41 @@ class LogicPuzzle:
         if not inner:
             self.a_is_b(cat_B, el_B, cat_A, el_A, inner=True)
     
-    def a_is_not_b(self, cat_A, el_A, cat_B, el_B):
+    # Rule 2
+    def a_is_not_b(self, cat_A, el_A, cat_B, el_B, inner=False):
         self.full_sets[ (cat_A, el_A, cat_B) ] -= set([el_B])
+
+        if not inner:
+            self.a_is_not_b(cat_B, el_B, cat_A, el_A, inner=True)
+    
+    # Rule 3
+    def exclusive_or(self, cat_A, el_A, cat_B, el_B, cat_C, el_C):
+        if cat_B == cat_C:
+            # This is much less likely
+            self.full_sets[(cat_A, el_A, cat_B)] = set( [ el_B, el_C ] )
+        else:
+            # This is the more likely case, with two separate categories for B and C
+            self.a_is_not_b(cat_B, el_B, cat_C, el_C)
+        
+        # If one of the options is impossible, set the proper values and eliminate the impossible
+        if not el_B in self.full_sets[ (cat_A, el_A, cat_B) ]:
+            self.a_is_b(cat_A, el_A, cat_C, el_C)
+            self.a_is_not_b(cat_A, el_A, cat_B, el_B)
+        elif not el_C in self.full_sets[ (cat_A, el_A, cat_C) ]:
+            self.a_is_b(cat_A, el_A, cat_B, el_B)
+            self.a_is_not_b(cat_A, el_A, cat_C, el_C)
+    
+    # Rule 4
+    # Given a list of (category, element) tuples (N_star), and a similar list for M_star
+    def list_to_list(self, N_star, M_star):
+        # Elements in the same list cannot be each other
+        for cat_A, el_A in N_star:
+            for cat_B, el_B in N_star:
+                if (cat_A, el_A) != (cat_B, el_B):
+                    self.a_is_not_b(cat_A, el_A, cat_B, el_B)
+        for cat_A, el_A in M_star:
+            for cat_B, el_B in M_star:
+                if (cat_A, el_A) != (cat_B, el_B):
+                    self.a_is_not_b(cat_A, el_A, cat_B, el_B)
 
     ##### General Logic Functions ######################################################################################################
