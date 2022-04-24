@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import itertools
 
 class LogicPuzzle:
     def __init__(self, category_f_name=None, rule_f_name=None):
@@ -75,7 +76,7 @@ class LogicPuzzle:
     def get_possible_M_star(self, cat_A, el_A, M_star):
         possible = []
         for cat_B, el_B in M_star:
-            if el_B in self.full_sets[ (cat_A, el_A, cat_B) ]:
+            if (cat_A, el_A, cat_B) in self.full_sets and el_B in self.full_sets[ (cat_A, el_A, cat_B) ]:
                 possible.append( (cat_B, el_B) )
         return possible
 
@@ -120,6 +121,9 @@ class LogicPuzzle:
 
     # Rule 1
     def a_is_b(self, cat_A, el_A, cat_B, el_B, inner=False):
+        if not (cat_A, el_A, cat_B) in self.full_sets:
+            return
+
         self.full_sets[ (cat_A, el_A, cat_B) ] = set([el_B])
         for val in self.category_values[cat_A]:
             if val != el_A:
@@ -131,6 +135,9 @@ class LogicPuzzle:
     
     # Rule 2
     def a_is_not_b(self, cat_A, el_A, cat_B, el_B, inner=False):
+        if not (cat_A, el_A, cat_B) in self.full_sets:
+            return
+            
         self.full_sets[ (cat_A, el_A, cat_B) ] -= set([el_B])
 
         if not inner:
@@ -138,6 +145,9 @@ class LogicPuzzle:
     
     # Rule 3
     def exclusive_or(self, cat_A, el_A, cat_B, el_B, cat_C, el_C):
+        if not (cat_A, el_A, cat_B) in self.full_sets or not (cat_A, el_A, cat_C) in self.full_sets:
+            return
+
         if cat_B == cat_C:
             # This is much less likely
             self.full_sets[(cat_A, el_A, cat_B)] = set( [ el_B, el_C ] )
@@ -172,11 +182,64 @@ class LogicPuzzle:
             self.list_to_list(M_star, N_star, inner=True)
 
     # Rule 5
+    # This should cover both cases
     # Assuming (cat_A, el_A, cat_C) is the set said to be larger than (cat_B, el_B, cat_C)
     def a_greater_than_b(self, cat_A, el_A, cat_B, el_B, cat_C, val=None):
         self.a_is_not_b(cat_A, el_A, cat_B, el_B)
-        self.full_sets[ (cat_A, el_A, cat_C) ] = self.subset( self.full_sets[ (cat_A, el_A, cat_C) ], 
-                                                                self.full_sets[ (cat_B, el_B, cat_C) ], 
-                                                                val=val )
+        sub_a, sub_b = self.subset( self.full_sets[ (cat_A, el_A, cat_C) ], 
+                                    self.full_sets[ (cat_B, el_B, cat_C) ], 
+                                    val=val )
+        self.full_sets[ (cat_A, el_A, cat_C) ] = sub_a
+        self.full_sets[ (cat_B, el_B, cat_C) ] = sub_b
 
     ##### General Logic Functions ######################################################################################################
+
+    # If (cat_A, el_A, cat_B) = el_B, then (cat_B, el_B, cat_A) = el_A
+    def reflexive_inclusion(self):
+
+        for cat_A, el_A, cat_B in self.full_sets:
+            els = self.full_sets[(cat_A, el_A, cat_B)]
+
+            # If the set of possibilities is only one element long, it is solved and that element must also
+            # have a reflexive relation back on el_A
+            if len(els) == 1:
+                el_B = LogicPuzzle.peek(els)
+                self.a_is_b(cat_B, el_B, cat_A, el_A)
+    
+    # If (cat_A, el_A, cat_B) can't be el_B, that means (cat_B, el_B, cat_A) can't be el_A
+    def reflexive_exclusion(self):
+
+        for cat_A, el_A, cat_B in self.full_sets:
+            els = self.full_sets[(cat_A, el_A, cat_B)]
+            universal = self.category_values[cat_B]             # All the possible values in cat_B
+            excluded = universal - els                          # The elements in cat_B that are no longer possibly linked to el_B
+            
+            for el_B in excluded:
+                self.a_is_not_b(cat_B, el_B, cat_A, el_A)
+    
+    # If (cat_A, el_A, cat_B) = el_B, and (cat_B, el_B, cat_C) = el_C, then (cat_A, el_A, cat_C) = el_C
+    # A broader way of characterizing this is:
+    # (cat_A, el_A, cat_C) = (cat_A, el_A, cat_C) intersect ( set() union (cat_B, el_B, cat_C) union ... )
+    # for all el_B in (cat_A, el_A, cat_B)
+    def link_inclusion(self):
+        
+        for cat_A, cat_B, cat_C in itertools.permutations(self.categories,3):
+            for el_A in self.category_values[cat_A]:
+                seed = set()
+                for el_B in self.full_sets[(cat_A, el_A, cat_B)]:
+                    seed |= self.full_sets[(cat_B, el_B, cat_C)]
+                self.full_sets[(cat_A, el_A, cat_C)] &= seed
+                        
+
+    # If el_B is not in (cat_A, el_A, cat_B), and (cat_B, el_B, cat_C) = el_C
+    # then (cat_A, el_A, cat_C) -= (cat_B_, el_B, cat_C)
+    def link_exclusion(self):
+        
+        for cat_A, cat_B, cat_C in itertools.permutations(self.categories,3):
+            universal_B = self.category_values[cat_B]
+            for el_A in self.category_values[cat_A]:
+                for el_B in (universal_B - self.full_sets[(cat_A, el_A, cat_B)]):
+                    c_set = self.full_sets[(cat_B, el_B, cat_C)]
+                    if len(c_set) == 1:
+                        # If A,a1 is not B,b1, but we know B,b1 is C,c1, then we know A,a1 cannot be C,c1
+                        self.full_sets[(cat_A, el_A, cat_C)] -= c_set
