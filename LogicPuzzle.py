@@ -7,6 +7,7 @@ class LogicPuzzle:
         self.categories = []                # list of category titles, first title will be the key category
         self.category_values = {}           # dict from category name to set of values in that category
         self.full_sets = {}                 # dict from (category_A_name, category_A_value, category_B_name) to set of remaining category_B_values
+        self.rules = []                     # list of rules. Each rule is a tuple of (function, parameters)
 
         if not category_f_name is None:
             self.read_categories(category_f_name)
