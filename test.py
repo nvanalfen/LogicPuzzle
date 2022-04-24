@@ -129,8 +129,281 @@ class LogicPuzzleTest(unittest.TestCase):
                 assert( len( lp.full_sets[key] ) == 2 )
             else:
                 assert( len( lp.full_sets[key] ) == 3 )
+    
+    def test_exclusive_or(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        set_key_B = ("B", "b1", "C")
+        set_key_C = ("C", 1.0, "B")
+
+        lp.exclusive_or("A","a1","B","b1","C",1.0)
+
+        assert( lp.full_sets[ set_key_B ] == set( [2.0, 3.0] ) )
+        assert( lp.full_sets[ set_key_C ] == set( ["b2", "b3"] ) )
+        for key in lp.full_sets:
+            if key != set_key_B and key != set_key_C:
+                assert( len( lp.full_sets[key] ) == 3 )
+        
+        lp.full_sets[ ("A", "a1", "B") ].remove("b1")
+        lp.exclusive_or("A","a1","B","b1","C",1.0)
+
+        assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([1.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([2.0, 3.0]) )
+        assert( lp.full_sets[set_key_B] == set( [2.0, 3.0] ) )
+        assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[set_key_C] == set( ["b2", "b3"] ) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )
+
+    def test_list_to_list(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        N_star = [("A","a1"), ("B","b1")]
+        M_star = [("C","c1"), ("C","c2")]
+
+        lp.list_to_list(N_star, M_star)
+
+        assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )
+
+    def test_a_greater_than_b(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        lp.a_greater_than_b("A", "a1", "B", "b1", "C")
+
+        # Test the general greater than
+        # This function leaves some values that should be eliminated
+        # This is ok. Getting rid of them is beyond the scope of this function and will be handled by other logic functions
+        assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([2.0, 3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0, 2.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )        # This line will lose a1 from logic later
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )        # This line will lose b1 from logic later
+
+        lp.create_sets()
+        lp.a_greater_than_b("A", "a1", "B", "b1", "C", val=2)
+        # Test greater by an amount
+        # similar to above, other logic functions will further eliminate candidates
+        assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )
 
     ##### Test General Logic Funcitons #############################################################################################
+
+    def test_reflexive_inclusion_one_element(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        lp.full_sets[("A","a1","B")] = set(["b1"])
+        lp.reflexive_inclusion()
+
+        assert( lp.full_sets[("A","a1","B")] == set(["b1"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a1"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )
+
+    def test_reflexive_inclusion_two_element(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        lp.full_sets[("A","a1","B")] = set(["b1"])
+        lp.full_sets[("B","b2","A")] = set(["a2"])
+        lp.reflexive_inclusion()
+
+        assert( lp.full_sets[("A","a1","B")] == set(["b1"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b2"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a1"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a2"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )
+
+    def test_reflexive_exclusion(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        lp.a_is_b("A","a1","B","b1")
+        lp.full_sets[("B","b1","C")] = set([1.0])
+
+        lp.reflexive_exclusion()
+
+        assert( lp.full_sets[("A","a1","B")] == set(["b1"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a1"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b2", "b3"]) )
+
+    def test_link_inclusion(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        lp.full_sets[("A","a1","B")].remove("b1")
+        lp.full_sets[("B","b2","C")].remove(1.0)
+        lp.full_sets[("B","b2","C")].remove(2.0)
+        lp.full_sets[("B","b3","C")].remove(1.0)
+        lp.full_sets[("B","b3","C")].remove(3.0)
+
+        lp.link_inclusion()
+
+        assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([2.0, 3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([2.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )
+
+    def test_link_exclusion(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        lp.full_sets[("A","a1","B")].remove("b1")
+        lp.a_is_b("B","b1","C",1.0)
+
+        lp.link_exclusion()
+
+        assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a3","B")] == set(["b1", "b2", "b3"]) )
+        assert( lp.full_sets[("A","a1","C")] == set([2.0, 3.0]) )
+        assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0]) )
+        assert( lp.full_sets[("B","b2","C")] == set([2.0, 3.0]) )
+        assert( lp.full_sets[("B","b3","C")] == set([2.0, 3.0]) )
+
+        assert( lp.full_sets[("B","b1","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b2","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("B","b3","A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",2.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",3.0,"A")] == set(["a1", "a2", "a3"]) )
+        assert( lp.full_sets[("C",1.0,"B")] == set(["b1"]) )
+        assert( lp.full_sets[("C",2.0,"B")] == set(["b2", "b3"]) )
+        assert( lp.full_sets[("C",3.0,"B")] == set(["b2", "b3"]) )
 
 if __name__ == "__main__":
     unittest.main()
