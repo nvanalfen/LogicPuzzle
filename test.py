@@ -1,7 +1,10 @@
 import unittest
 from LogicPuzzle import LogicPuzzle
+from RuleParser import RuleParser
+from Token import Token, TokenType
 import os
 
+# Test methods in LogicPuzzle
 class LogicPuzzleTest(unittest.TestCase):
 
     ##### Test Setup Functions #####################################################################################################
@@ -404,6 +407,171 @@ class LogicPuzzleTest(unittest.TestCase):
         assert( lp.full_sets[("C",1.0,"B")] == set(["b1"]) )
         assert( lp.full_sets[("C",2.0,"B")] == set(["b2", "b3"]) )
         assert( lp.full_sets[("C",3.0,"B")] == set(["b2", "b3"]) )
+
+# Test methods in RuleParser
+class RuleParserTest(unittest.TestCase):
+    pass
+
+# Test methods in Token
+class TokenTest(unittest.TestCase):
+
+    def test_is_inflexible_token(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        tok = Token("=")
+        assert( tok.is_inflexible_token() )
+
+        tok = Token("!=")
+        assert( tok.is_inflexible_token() )
+
+        tok = Token(">")
+        assert( tok.is_inflexible_token() )
+
+        tok = Token("+")
+        assert( tok.is_inflexible_token() )
+
+    def test_get_element(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        tok = Token("a1")
+        result = tok.get_element(lp)
+        assert( result == ("A","a1") )
+
+        tok = Token("c1")
+        result = tok.get_element(lp)
+        assert( result is None )
+
+    def test_validate_element_token(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        tok = Token("a1")
+        tok.validate_element_token(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.ELEMENT )
+        assert( tok.value == ("A","a1") )
+
+        tok = Token("c1")
+        tok.validate_element_token(lp)
+        assert( not tok.valid )
+        assert( tok.tok_type == TokenType.INVALID )
+        assert( tok.value == "c1" )
+
+    def test_validate_list_token(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        tok = Token("[a1,b1]")
+        tok.validate_list_token(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.LIST )
+        assert( tok.value == [("A","a1"), ("B","b1")] )
+
+        tok = Token("[a1,b1,c1]")
+        tok.validate_list_token(lp)
+        assert( not tok.valid )
+        assert( tok.tok_type == TokenType.INVALID )
+        assert( tok.value == "[a1,b1,c1]" )
+
+    def test_validate_pair_token(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        tok = Token("a1,C")
+        tok.validate_pair_token(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.PAIR )
+        assert( tok.value == ("A", "a1", "C") )
+
+        tok = Token(",C")
+        tok.validate_pair_token(lp)
+        assert( not tok.valid )
+        assert( tok.tok_type == TokenType.INVALID )
+        assert( tok.value == ",C" )
+
+        tok = Token("b4,C")
+        tok.validate_pair_token(lp)
+        assert( not tok.valid )
+        assert( tok.tok_type == TokenType.INVALID )
+        assert( tok.value == "b4,C" )
+
+        tok = Token(",")
+        tok.validate_pair_token(lp)
+        assert( not tok.valid )
+        assert( tok.tok_type == TokenType.INVALID )
+        assert( tok.value == "," )
+
+    def test_set_type(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        tok = Token("=")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.EQUAL )
+        assert( tok.value == "=" )
+
+        tok = Token("!=")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.NOT_EQUAL )
+        assert( tok.value == "!=" )
+
+        tok = Token(">")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.GT )
+        assert( tok.value == ">" )
+
+        tok = Token("+")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.PLUS )
+        assert( tok.value == "+" )
+
+        tok = Token("5")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.NUMBER )
+        assert( tok.value == 5.0 )
+
+        tok = Token("b2")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.ELEMENT )
+        assert( tok.value == ("B","b2") )
+
+        tok = Token("C:2")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.ELEMENT )
+        assert( tok.value == ("C",2.0) )
+
+        tok = Token("b2,C")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.PAIR )
+        assert( tok.value == ("B","b2","C") )
+
+        tok = Token("[a1,a2,b1,C:2]")
+        tok.set_type(lp)
+        assert( tok.valid )
+        assert( tok.tok_type == TokenType.LIST )
+        assert( tok.value == [("A","a1"),("A","a2"),("B","b1"),("C",2.0)] )
+
+        tok = Token("a4")
+        tok.set_type(lp)
+        assert( not tok.valid )
+        assert( tok.tok_type == TokenType.INVALID )
+        assert( tok.value == "a4" )
 
 if __name__ == "__main__":
     unittest.main()
