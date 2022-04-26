@@ -1,6 +1,6 @@
 import unittest
 from LogicPuzzle import LogicPuzzle
-from RuleParser import RuleParser
+from RuleParser import RuleParser, InvalidTokenException, UnexpectedTokenException, MissingTokenException
 from Token import Token, TokenType
 import os
 
@@ -408,10 +408,6 @@ class LogicPuzzleTest(unittest.TestCase):
         assert( lp.full_sets[("C",2.0,"B")] == set(["b2", "b3"]) )
         assert( lp.full_sets[("C",3.0,"B")] == set(["b2", "b3"]) )
 
-# Test methods in RuleParser
-class RuleParserTest(unittest.TestCase):
-    pass
-
 # Test methods in Token
 class TokenTest(unittest.TestCase):
 
@@ -572,6 +568,179 @@ class TokenTest(unittest.TestCase):
         assert( not tok.valid )
         assert( tok.tok_type == TokenType.INVALID )
         assert( tok.value == "a4" )
+
+# Test methods in RuleParser
+class RuleParserTest(unittest.TestCase):
+    
+    def test_read_rules(self):
+        lp = LogicPuzzle()
+        rp = RuleParser()
+        lines = rp.read_rules(os.path.join("tests","rules1.txt"))
+
+        assert( len(lines) == 6 )
+        assert( lines[0] == ["a1", "=", "b1"] )
+        assert( lines[1] == ["a2", "!=", "b3"] )
+        assert( lines[2] == ["a2", "=", "[b2,C:1]"] )
+        assert( lines[3] == ["[a1,b2]", "=", "[b1,C:2]"] )
+        assert( lines[4] == ["a1,C", ">", "b2,C"] )
+        assert( lines[5] == ["a2,C", "=", "b3,C", "+", "2"] )
+
+    def test_read_grammar(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+        rp = RuleParser()
+        rp.read_grammar()
+
+        # 6 Paths so far
+        # ELEMENT,=,ELEMENT
+        # ELEMENT,!=,ELEMENT
+        # ELEMENT,=,LIST
+        # LIST,=,LIST
+        # PAIR,>,PAIR
+        # PAIR,=,PAIR,+,#
+
+        node = rp.grammar
+        # Make sure the right keys are at the first level and none of them have a value
+        assert( len( node.next ) == 3 )
+        assert( all( [ t in node.next for t in [TokenType.ELEMENT, TokenType.PAIR, TokenType.LIST] ] ) )
+        assert( all( [ node.next[t].value == -1 for t in node.next ] ) )
+
+        # Follow the ELEMENT path first
+        node = node.next[TokenType.ELEMENT]
+        assert( len( node.next ) == 2 )
+        assert( all( [ t in node.next for t in [TokenType.EQUAL, TokenType.NOT_EQUAL] ] ) )
+        assert( all( [ node.next[t].value == -1 for t in node.next ] ) )
+        # Continue forward one more to the = path
+        node = node.next[TokenType.EQUAL]
+        assert( len( node.next ) == 2 )
+        assert( all( [ t in node.next for t in [TokenType.ELEMENT, TokenType.LIST] ] ) )
+        assert( node.next[TokenType.ELEMENT].value == 1 )
+        assert( node.next[TokenType.LIST].value == 3 )
+        assert( len(node.next[TokenType.ELEMENT].next) == 0 )
+        assert( len(node.next[TokenType.LIST].next) == 0 )
+
+        # Back up to the ELEMENT,!= path
+        node = rp.grammar
+        node = node.next[TokenType.ELEMENT]
+        node = node.next[TokenType.NOT_EQUAL]
+        assert( len( node.next ) == 1 )
+        assert( node.next[TokenType.ELEMENT].value == 2 )
+        assert( len(node.next[TokenType.ELEMENT].next) == 0 )
+
+        # Back up and check the LIST path
+        node = rp.grammar
+        node = node.next[TokenType.LIST]
+        assert( len( node.next ) == 1 )
+        assert( node.next[TokenType.EQUAL].value == -1 )
+        node = node.next[TokenType.EQUAL]
+        assert( len( node.next ) == 1 )
+        assert( node.next[TokenType.LIST].value == 4 )
+        assert( len(node.next[TokenType.LIST].next) == 0 )
+
+        # Back up and check the PAIR path
+        node = rp.grammar
+        node = node.next[TokenType.PAIR]
+        assert( len( node.next ) == 2 )
+        assert( node.next[TokenType.GT].value == -1 )
+        assert( node.next[TokenType.EQUAL].value == -1 )
+        # Check the > Path
+        node = node.next[TokenType.GT]
+        assert( len( node.next ) == 1 )
+        assert( node.next[TokenType.PAIR].value == 5 )
+        assert( len(node.next[TokenType.PAIR].next) == 0 )
+        # Back up again to the PAIR,= path
+        node = rp.grammar
+        node = node.next[TokenType.PAIR]
+        node = node.next[TokenType.EQUAL]
+        assert( len( node.next ) == 1 )
+        assert( node.next[TokenType.PAIR].value == -1 )
+        node = node.next[TokenType.PAIR]
+        assert( len( node.next ) == 1 )
+        assert( node.next[TokenType.PLUS].value == -1 )
+        node = node.next[TokenType.PLUS]
+        assert( len( node.next ) == 1 )
+        assert( node.next[TokenType.NUMBER].value == 5 )
+        assert( len(node.next[TokenType.NUMBER].next) == 0 )
+
+    def test_tokenize(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+        rp = RuleParser()
+        lines = rp.read_rules(os.path.join("tests","rules1.txt"))
+        tokenized = rp.tokenize(lines, lp)
+
+        assert( len(tokenized) == 6 )
+        assert( [ t.value for t in tokenized[0] ] == [("A","a1"), "=", ("B","b1")] )
+        assert( [ t.value for t in tokenized[1] ] == [("A","a2"), "!=", ("B","b3")] )
+        assert( [ t.value for t in tokenized[2] ] == [("A","a2"), "=", [("B","b2"),("C",1.0)]] )
+        assert( [ t.value for t in tokenized[3] ] == [[("A","a1"),("B","b2")], "=", [("B","b1"),("C",2)]] )
+        assert( [ t.value for t in tokenized[4] ] == [("A","a1","C"), ">", ("B","b2","C")] )
+        assert( [ t.value for t in tokenized[5] ] == [("A","a2","C"), "=", ("B","b3","C"), "+", 2] )
+
+        for row in tokenized:
+            assert( all( [ t.valid for t in row ] ) )
+    
+    def test_validate(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+        rp = RuleParser()
+        lines = rp.read_rules( os.path.join("tests","rules1.txt") )
+        tokenized = rp.tokenize(lines, lp)
+        validated = rp.validate(tokenized)
+
+        # Validate that the possible rule types are validated
+        assert( len(validated) == 6 )
+        assert( validated[0][0] == 1 )
+        assert( [t.tok_type for t in validated[0][1]] == [TokenType.ELEMENT, TokenType.EQUAL, TokenType.ELEMENT] )
+        assert( validated[1][0] == 2 )
+        assert( [t.tok_type for t in validated[1][1]] == [TokenType.ELEMENT, TokenType.NOT_EQUAL, TokenType.ELEMENT] )
+        assert( validated[2][0] == 3 )
+        assert( [t.tok_type for t in validated[2][1]] == [TokenType.ELEMENT, TokenType.EQUAL, TokenType.LIST] )
+        assert( validated[3][0] == 4 )
+        assert( [t.tok_type for t in validated[3][1]] == [TokenType.LIST, TokenType.EQUAL, TokenType.LIST] )
+        assert( validated[4][0] == 5 )
+        assert( [t.tok_type for t in validated[4][1]] == [TokenType.PAIR, TokenType.GT, TokenType.PAIR] )
+        assert( validated[5][0] == 5 )
+        assert( [t.tok_type for t in validated[5][1]] == [TokenType.PAIR, TokenType.EQUAL, TokenType.PAIR, TokenType.PLUS, TokenType.NUMBER] )
+
+        # Deliberately get an invalid token exception
+        rp = RuleParser()
+        lines = rp.read_rules(os.path.join("tests","invalid_token_rules.txt"))
+        tokenized = rp.tokenize(lines, lp)
+        try:
+            validated = rp.validate(tokenized)
+            assert(False)                       # Deliberately fail the test if the except isn't triggered
+        except InvalidTokenException as e:
+            assert( str(e) == "Expression 4: Invalid token. Token 3 - value = c1" )
+        except:
+            assert(False)                       # Deliberately fail the test if any other exception is triggered
+
+        # Deliberately get an unexpected token exception
+        rp = RuleParser()
+        lines = rp.read_rules( os.path.join("tests","unexpected_token_rules.txt") )
+        tokenized = rp.tokenize(lines, lp)
+        try:
+            validated = rp.validate(tokenized)
+            assert(False)                       # Deliberately fail the test if the except isn't triggered
+        except UnexpectedTokenException as e:
+            assert( str(e) == "Expression 3: Unexpected token. Token 2 - value = [('B', 'b2'), ('C', 1.0)], type = TokenType.LIST" )
+        except:
+            assert(False)                       # Deliberately fail the test if any other exception is triggered
+
+        # Deliberately get a missing token exception
+        rp = RuleParser()
+        lines = rp.read_rules( os.path.join("tests","missing_token_rules.txt") )
+        tokenized = rp.tokenize(lines, lp)
+        try:
+            validated = rp.validate(tokenized)
+            assert(False)                       # Deliberately fail the test if the except isn't triggered
+        except MissingTokenException as e:
+            assert( str(e) == "Expression 3: Expression ended early. Expected token after '=', type = TokenType.EQUAL" )
+        except:
+            assert(False)                       # Deliberately fail the test if any other exception is triggered
 
 if __name__ == "__main__":
     unittest.main()
