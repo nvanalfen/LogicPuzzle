@@ -14,10 +14,13 @@ class TokenType(Enum):
 
 class Token():
     
-    def __init__(self, tok=None):
+    def __init__(self, tok, puzzle:LogicPuzzle=None):
         self.tok_type = TokenType.INVALID
         self.value = tok
         self.valid = False
+
+        if not puzzle is None:
+            self.set_type(puzzle)
 
     # Set the type of token, the value, and whether or not it's a recognized token type
     def set_type(self, puzzle:LogicPuzzle):
