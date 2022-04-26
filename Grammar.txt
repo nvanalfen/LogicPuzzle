@@ -1,0 +1,9 @@
+% Set up as:
+% Rule Number : Sequence of allowed token types
+% Also, the % is a comment here
+1:ELEMENT,=,ELEMENT
+2:ELEMENT,!=,ELEMENT
+3:ELEMENT,=,LIST
+4:LIST,=,LIST
+5:PAIR,>,PAIR
+5:PAIR,=,PAIR,+,#
