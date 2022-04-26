@@ -1,0 +1,6 @@
+a1 = b1			# Rule 1
+a2 != b3		# Rule 2
+a2 = [b2,C:1]		# Rule 3
+[a1,b2] = [b1,C:2]	# Rule 4
+a1,C > b2,C		# Rule 5a
+a2,C = b3,C + 2		# Rule 5b

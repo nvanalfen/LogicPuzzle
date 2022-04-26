@@ -1,0 +1,4 @@
+a1 = b1			# Rule 1
+a2 != b3		# Rule 2
+a2 = [b2,C:1]		# Rule 3
+a3 = c1			# Invalid token, expression 4, token 3
