@@ -12,6 +12,13 @@ class TokenType(Enum):
     NUMBER = "#"
     INVALID = "INV"
 
+    # Get token type if given the string mapped to the enum value for that type
+    def get_type(val):
+        for el in TokenType:
+            if val == el.value:
+                return el
+        return TokenType.INVALID
+
 class Token():
     
     def __init__(self, tok, puzzle:LogicPuzzle=None):
