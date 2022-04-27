@@ -69,7 +69,7 @@ class LogicPuzzle:
         rule_dict[1] = self.a_is_b
         rule_dict[2] = self.a_is_not_b
         rule_dict[3] = self.one_to_many
-        rule_dict[4] = self.list_to_list
+        rule_dict[4] = self.many_to_many
         rule_dict[5] = self.a_greater_than_b
 
         for line in validated:
@@ -258,21 +258,13 @@ class LogicPuzzle:
     
     # Rule 4
     # Given a list of (category, element) tuples (N_star), and a similar list for M_star
-    def list_to_list(self, N_star, M_star, inner=False):
+    def many_to_many(self, N_star, M_star, inner=False):
         # Elements in the same list cannot be each other
         for cat_A, el_A in N_star:
-            for cat_B, el_B in N_star:
-                if (cat_A, el_A) != (cat_B, el_B):
-                    self.a_is_not_b(cat_A, el_A, cat_B, el_B)
-        
-        for cat_A, el_A in N_star:
-            possible_M_star = self.get_possible_M_star(cat_A, el_A, M_star)
-            if len(possible_M_star) == 1:
-                cat_B, el_B = possible_M_star[0]
-                self.a_is_b(cat_A, el_A, cat_B, el_B)
+            self.one_to_many(cat_A, el_A, M_star)
 
         if not inner:
-            self.list_to_list(M_star, N_star, inner=True)
+            self.many_to_many(M_star, N_star, inner=True)
 
     # Rule 5
     # This should cover both cases
