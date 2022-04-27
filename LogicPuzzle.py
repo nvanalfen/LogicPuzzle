@@ -139,6 +139,42 @@ class LogicPuzzle:
                 possible.append( (cat_B, el_B) )
         return possible
 
+    # Given a (cat_A, el_A) element and a list (M_star) of (cat_B, el_B), if every element in the list belongs to the 
+    # same category as the other elements, reduce the set of cat_A, el_A on that category to a set of
+    # the elements in that list intersected with the possible elements left for cat_A, el_A on that set
+    def check_single_category_list(self, cat_A, el_A, M_star:list) -> None:
+        cats = set()
+        els = set()
+        for cat_B, el_B in M_star:
+            cats.add(cat_B)
+            els.add(el_B)
+        if len(cats) == 1:
+            cat_B = cats.pop()
+            # Intersect the current set of possibilities with the elements proposed
+            self.full_sets[(cat_A, el_A, cat_B)] &= els
+
+            # If there's only one element left, run a_is_b
+            # Even though this set is already correct, this call will exclude el_A from the remaining elements
+            if len(self.full_sets[(cat_A, el_A, cat_B)]) == 1:
+                for el in els:
+                    if not el in self.full_sets[(cat_A, el_A, cat_B)]:
+                        self.a_is_not_b(cat_A, el_A, cat_B, el)
+    
+    # Given a list of (cat, el) elements, exclude each (cat_A, el_A) from all other (cat_B, el_B) elements in that list
+    def multi_exclusion(self, N_star:list) -> None:
+        for cat_B, el_B in N_star:
+            for cat_C, el_C in N_star:
+                if (cat_B, el_B) != (cat_C, el_C):
+                    self.a_is_not_b(cat_B, el_B, cat_C, el_C)
+    
+    # Check how many of the elements in M_star can still be mapped to (cat_A, el_A)
+    # If only one works, set it
+    def check_possibilities(self, cat_A, el_A , M_star:list) -> None:
+        possible_M_star = self.get_possible_M_star(cat_A, el_A, M_star)
+        if len(possible_M_star) == 1:
+            cat_B, el_B = possible_M_star[0]
+            self.a_is_b(cat_A, el_A, cat_B, el_B)
+
     # Checks the completion of the puzzle
     def is_complete(self):
         if len( self.full_sets ) == 0:
@@ -201,27 +237,24 @@ class LogicPuzzle:
 
         if not inner:
             self.a_is_not_b(cat_B, el_B, cat_A, el_A, inner=True)
-    
-    # Rule 3
-    # TODO : refactor to generalize to be: one_of_many
-    def exclusive_or(self, cat_A, el_A, cat_B, el_B, cat_C, el_C):
-        if not (cat_A, el_A, cat_B) in self.full_sets or not (cat_A, el_A, cat_C) in self.full_sets:
-            return
 
-        if cat_B == cat_C:
-            # This is much less likely
-            self.full_sets[(cat_A, el_A, cat_B)] = set( [ el_B, el_C ] )
-        else:
-            # This is the more likely case, with two separate categories for B and C
-            self.a_is_not_b(cat_B, el_B, cat_C, el_C)
+    # Rule 3
+    def one_to_many(self, cat_A, el_A, M_star:list) -> None:
+        # Make sure cat_A, el_A can actually map to all cat_B in M_star
+        for cat_B, el_B in M_star:
+            if not (cat_A, el_A, cat_B) in self.full_sets:
+                return
+
+        # Elements in the same list cannot be each other
+        self.multi_exclusion(M_star)
         
-        # If one of the options is impossible, set the proper values and eliminate the impossible
-        if not el_B in self.full_sets[ (cat_A, el_A, cat_B) ]:
-            self.a_is_b(cat_A, el_A, cat_C, el_C)
-            self.a_is_not_b(cat_A, el_A, cat_B, el_B)
-        elif not el_C in self.full_sets[ (cat_A, el_A, cat_C) ]:
-            self.a_is_b(cat_A, el_A, cat_B, el_B)
-            self.a_is_not_b(cat_A, el_A, cat_C, el_C)
+        # Account for the case that all elements in M_star belong to the same category
+        self.check_single_category_list(cat_A, el_A, M_star)
+
+        # Check how many elements in M_star can possible be linked to (cat_A, el_A)
+        # If this set is only one element, set it
+        # Unfortunately, this will be redundant in the case than all categories are the same (since check_single_category has been run)
+        self.check_possibilities(cat_A, el_A, M_star)
     
     # Rule 4
     # Given a list of (category, element) tuples (N_star), and a similar list for M_star
