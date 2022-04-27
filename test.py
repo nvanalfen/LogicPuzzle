@@ -33,7 +33,84 @@ class LogicPuzzleTest(unittest.TestCase):
         assert( all( [ val in lp.category_values["C"] for val in [1.0, 2.0, 3.0] ] ) )
 
     def test_read_rules(self):
-        pass
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+        lp.rule_f_name = os.path.join("tests","rules1.txt")
+        lp.read_rules()
+
+        assert( lp.rules[0][0] == lp.a_is_b )
+        assert( lp.rules[0][1] == ["A","a1","B","b1"] )
+
+        assert( lp.rules[1][0] == lp.a_is_not_b )
+        assert( lp.rules[1][1] == ["A","a2","B","b3"] )
+
+        assert( lp.rules[2][0] == lp.exclusive_or )
+        assert( lp.rules[2][1] == ["A","a2",[("B","b2"),("C",1.0)]] )
+
+        assert( lp.rules[3][0] == lp.list_to_list )
+        assert( lp.rules[3][1] == [[("A","a1"),("B","b2")],[("B","b1"),("C",2.0)]] )
+
+        assert( lp.rules[4][0] == lp.a_greater_than_b )
+        assert( lp.rules[4][1] == ["A","a1","B","b2","C"] )
+
+        assert( lp.rules[5][0] == lp.a_greater_than_b )
+        assert( lp.rules[5][1] == ["A","a2","B","b3","C",2] )
+
+    def test_set_rules(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+        rp = RuleParser()
+        lines = rp.read_rules( os.path.join("tests","rules1.txt") )
+        tokenized = rp.tokenize(lines, lp)
+        validated = rp.validate(tokenized)
+        lp.set_rules(validated)
+
+        assert( lp.rules[0][0] == lp.a_is_b )
+        assert( lp.rules[0][1] == ["A","a1","B","b1"] )
+
+        assert( lp.rules[1][0] == lp.a_is_not_b )
+        assert( lp.rules[1][1] == ["A","a2","B","b3"] )
+
+        assert( lp.rules[2][0] == lp.exclusive_or )
+        assert( lp.rules[2][1] == ["A","a2",[("B","b2"),("C",1.0)]] )
+
+        assert( lp.rules[3][0] == lp.list_to_list )
+        assert( lp.rules[3][1] == [[("A","a1"),("B","b2")],[("B","b1"),("C",2.0)]] )
+
+        assert( lp.rules[4][0] == lp.a_greater_than_b )
+        assert( lp.rules[4][1] == ["A","a1","B","b2","C"] )
+
+        assert( lp.rules[5][0] == lp.a_greater_than_b )
+        assert( lp.rules[5][1] == ["A","a2","B","b3","C",2] )
+
+    def test_extract_params(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+        rp = RuleParser()
+        lines = rp.read_rules( os.path.join("tests","rules1.txt") )
+        tokenized = rp.tokenize(lines, lp)
+        validated = rp.validate(tokenized)
+
+        params = lp.extract_params( validated[0][1] )
+        assert( params == ["A","a1","B","b1"] )
+
+        params = lp.extract_params( validated[1][1] )
+        assert( params == ["A","a2","B","b3"] )
+
+        params = lp.extract_params( validated[2][1] )
+        assert( params == ["A","a2",[("B","b2"),("C",1.0)]] )
+
+        params = lp.extract_params( validated[3][1] )
+        assert( params == [[("A","a1"),("B","b2")],[("B","b1"),("C",2.0)]] )
+
+        params = lp.extract_params( validated[4][1] )
+        assert( params == ["A","a1","B","b2","C"] )
+
+        params = lp.extract_params( validated[5][1] )
+        assert( params == ["A","a2","B","b3","C",2] )
 
     def test_create_sets(self):
         lp = LogicPuzzle()
