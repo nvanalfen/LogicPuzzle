@@ -1,4 +1,4 @@
-from LogicPuzzle import LogicPuzzle
+#from LogicPuzzle import LogicPuzzle
 from Token import Token, TokenType
 
 GRAMMAR_FILE = "Grammar.txt"
@@ -66,7 +66,7 @@ class RuleParser:
         f.close()
         return lines
 
-    def tokenize(self, lines, puzzle:LogicPuzzle):
+    def tokenize(self, lines, puzzle):
         tokenized_lines = []
         for line in lines:
             tokenized_lines.append( [ Token(el, puzzle) for el in line ] )
@@ -102,7 +102,7 @@ class RuleParser:
         
         return verified
 
-    def get_validated_rules(self, rule_f_name, puzzle:LogicPuzzle):
+    def get_validated_rules(self, rule_f_name, puzzle):
         lines = self.read_rules( rule_f_name )
         tokenized = self.tokenize( lines, puzzle )
         return self.validate( tokenized )

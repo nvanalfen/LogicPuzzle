@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from RuleParser import RuleParser, InvalidTokenException, UnexpectedTokenException, MissingTokenException
+from Token import TokenType
 import itertools
 
 class LogicPuzzle:
@@ -7,6 +9,8 @@ class LogicPuzzle:
         self.categories = []                # list of category titles, first title will be the key category
         self.category_values = {}           # dict from category name to set of values in that category
         self.full_sets = {}                 # dict from (category_A_name, category_A_value, category_B_name) to set of remaining category_B_values
+        self.parser = RuleParser()          # parser to tokenize, and validate rules
+        self.rule_f_name = rule_f_name      # File where the rules are stored
         self.rules = []                     # list of rules. Each rule is a tuple of (function, parameters)
 
         if not category_f_name is None:
@@ -40,9 +44,63 @@ class LogicPuzzle:
         except:
             print("Error")
 
-    def read_rules(self, f_name):
-        pass
+    def read_rules(self):
+        if self.rule_f_name is None:
+            return
 
+        try:
+            validated_rules = self.rp.get_validated_rules(self.rule_f_name, self)
+            self.set_rules(validated_rules)
+        except InvalidTokenException as e:
+            print("Invalid Token Exception")
+            print( str(e) )
+        except MissingTokenException as e:
+            print("Missing Token Exception")
+            print( str(e) )
+        except UnexpectedTokenException as e:
+            print("Unexpected Token Exception")
+            print( str(e) )
+        except:
+            print("Unknown error occurred")
+
+    # Given the validated tokens, build the list of functions calls and parameters to be called each loop
+    def set_rules(self, validated):
+        rule_dict = {}
+        rule_dict[1] = self.a_is_b
+        rule_dict[2] = self.a_is_not_b
+        rule_dict[3] = self.exclusive_or
+        rule_dict[4] = self.list_to_list
+        rule_dict[5] = self.a_greater_than_b
+
+        for line in validated:
+            ind, args = line
+            args = self.extract_params(args)
+            self.rules.append( ( rule_dict[ind], args ) )
+
+    # Take the tokens and pull out the values that will be the parameters
+    def extract_params(self, line):
+        params = []
+        cat_C = None
+        numerical = None
+        for tok in line:
+            if tok.tok_type == TokenType.ELEMENT:
+                params.extend( tok.value )
+            elif tok.tok_type == TokenType.LIST:
+                params.append( tok.value )
+            elif tok.tok_type == TokenType.PAIR:
+                params.extend( tok.value[:2] )
+                cat_C = tok.value[2]
+            elif tok.tok_type == TokenType.NUMBER:
+                numerical = tok.value
+
+        if not cat_C is None:
+            params.append( cat_C )
+        if not numerical is None:
+            params.append( numerical )
+
+        return params
+
+    # Create the initial sets
     def create_sets(self):
         for i in range(len(self.categories)):
             cat_A = self.categories[i]
@@ -52,7 +110,7 @@ class LogicPuzzle:
                     self.full_sets[ ( cat_A, val, cat_B ) ] = set( self.category_values[ cat_B ] )
                 for val in self.category_values[ cat_B ]:
                     self.full_sets[ ( cat_B, val, cat_A ) ] = set( self.category_values[ cat_A ] )
-    
+
     ##### Auxilliary Functions #########################################################################################################
 
     # Check the first element of a set (useful when the cardinality of a is 1)
@@ -90,35 +148,35 @@ class LogicPuzzle:
     ##### Rule Functions ###############################################################################################################
 
     # Rule types:
-    # 1)    a is b          -> Clear-cut, we are told el_A from cat_A is linked to el_B from cat_B
-    #                       -> (cat_A, el_A, cat_B) = {el_B}
-    #                       -> (cat_B, el_B, cat_A) = {el_A}
-    #                       -> run (c is not b) for all c != a,b
-    #                       -> run (c is not a) for all c != a,b
-    # 2)    a is not b      -> Clear-cut, remove el_B of cat_B from possibilities of el_A from cat_A
-    #                       -> (cat_A, el_A, cat_B) -= {el_B}
-    #                       -> (cat_B, el_B, cat_A) -= {el_A}
-    # 3)    a is b or c     -> Run (b is not c) and (c is not b)
-    #                       -> If cat_B == cat_C, (cat_A, el_A, cat_B) = { el_B, el_C }
-    #                       -> If (cat_A, el_A, cat_B) does not contain el_B, set to el_C
-    #                       -> If (cat_A, el_A, cat_C) does not contain el_C, set to el_B
-    # 4)    [N*] = [M*]     -> Each of the N elements (in N*), from possibly different categories, can be one of the N elements in [M*]
-    #                       -> Run (N1 is not Ni) for Ni != N1 in N*
-    #                       -> Run (M1 is not Mi) for Mi != M1 in M*
-    #                       -> Generate { (cat_M, el_M) } from union of ( (cat_N, el_N, cat_M) intersect {el_M} ) for all N in N*, M in M*
-    #                       -> If cardinality is 1, run el_N is el_M
-    #                       -> Generate { (cat_N, el_N) } from union of ( (cat_M, el_M, cat_N) intersect {el_N} ) for all N in N*, M in M*
-    #                       -> If cardinality is 1, run el_N is el_M
-    # 5a)   a > b           -> We are told (cat_A, el_A, cat_C) > (cat_B, el_B, cat_C)
-    #                       -> run (a is not b)
-    #                       -> run (b is not a)
-    #                       -> (cat_A, el_A, cat_C) = (cat_A, el_A, cat_C) > min( (cat_B, el_B, cat_C) )
-    #                       -> (cat_B, el_B, cat_C) = (cat_B, el_B, cat_C) < max( (cat_A, el_A, cat_C) )
-    # 5b)   a = b + x       -> We are told (cat_A, el_A, cat_C) is x greater than (cat_B, el_B, cat_C)
-    #                       -> run (a is not b)
-    #                       -> run (b is not a)
-    #                       -> (cat_A, el_A, cat_C) = (cat_A, el_A, cat_C) intersect ( (cat_B, el_B, cat_C) + x )
-    #                       -> (cat_B, el_B, cat_C) = (cat_B, el_B, cat_C) intersect ( (cat_A, el_A, cat_C) - x )
+    # 1)    a is b              -> Clear-cut, we are told el_A from cat_A is linked to el_B from cat_B
+    #                           -> (cat_A, el_A, cat_B) = {el_B}
+    #                           -> (cat_B, el_B, cat_A) = {el_A}
+    #                           -> run (c is not b) for all c != a,b
+    #                           -> run (c is not a) for all c != a,b
+    # 2)    a is not b          -> Clear-cut, remove el_B of cat_B from possibilities of el_A from cat_A
+    #                           -> (cat_A, el_A, cat_B) -= {el_B}
+    #                           -> (cat_B, el_B, cat_A) -= {el_A}
+    # 3)    a is one of [M*]    -> Run (b is not c) for all b,c in M*
+    #                           -> If cat_B == cat_C for all b,c in M*, (cat_A, el_A, cat_B) = { al el in M* }
+    #                           -> Generate { (cat_M, el_M) } from union of ( (cat_A, el_a, cat_M) intersect {el_M} ) for all M in M*
+    #                           -> If cardinality is 1, run (a in el_M)
+    # 4)    [N*] = [M*]         -> Each of the N elements (in N*), from possibly different categories, can be one of the M elements in [M*]
+    #                           -> Run (N1 is not Ni) for Ni != N1 in N*
+    #                           -> Run (M1 is not Mi) for Mi != M1 in M*
+    #                           -> Generate { (cat_M, el_M) } from union of ( (cat_N, el_N, cat_M) intersect {el_M} ) for all N in N*, M in M*
+    #                           -> If cardinality is 1, run el_N is el_M
+    #                           -> Generate { (cat_N, el_N) } from union of ( (cat_M, el_M, cat_N) intersect {el_N} ) for all N in N*, M in M*
+    #                           -> If cardinality is 1, run el_N is el_M
+    # 5a)   a > b               -> We are told (cat_A, el_A, cat_C) > (cat_B, el_B, cat_C)
+    #                           -> run (a is not b)
+    #                           -> run (b is not a)
+    #                           -> (cat_A, el_A, cat_C) = (cat_A, el_A, cat_C) > min( (cat_B, el_B, cat_C) )
+    #                           -> (cat_B, el_B, cat_C) = (cat_B, el_B, cat_C) < max( (cat_A, el_A, cat_C) )
+    # 5b)   a = b + x           -> We are told (cat_A, el_A, cat_C) is x greater than (cat_B, el_B, cat_C)
+    #                           -> run (a is not b)
+    #                           -> run (b is not a)
+    #                           -> (cat_A, el_A, cat_C) = (cat_A, el_A, cat_C) intersect ( (cat_B, el_B, cat_C) + x )
+    #                           -> (cat_B, el_B, cat_C) = (cat_B, el_B, cat_C) intersect ( (cat_A, el_A, cat_C) - x )
 
     # Rule 1
     def a_is_b(self, cat_A, el_A, cat_B, el_B, inner=False):
@@ -145,6 +203,7 @@ class LogicPuzzle:
             self.a_is_not_b(cat_B, el_B, cat_A, el_A, inner=True)
     
     # Rule 3
+    # TODO : refactor to generalize to be: one_of_many
     def exclusive_or(self, cat_A, el_A, cat_B, el_B, cat_C, el_C):
         if not (cat_A, el_A, cat_B) in self.full_sets or not (cat_A, el_A, cat_C) in self.full_sets:
             return
