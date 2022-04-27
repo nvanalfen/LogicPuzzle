@@ -1,4 +1,4 @@
-from LogicPuzzle import LogicPuzzle
+#from LogicPuzzle import LogicPuzzle
 from enum import Enum
 
 class TokenType(Enum):
@@ -21,7 +21,7 @@ class TokenType(Enum):
 
 class Token():
     
-    def __init__(self, tok, puzzle:LogicPuzzle=None):
+    def __init__(self, tok, puzzle=None):
         self.tok_type = TokenType.INVALID
         self.value = tok
         self.valid = False
@@ -30,7 +30,7 @@ class Token():
             self.set_type(puzzle)
 
     # Set the type of token, the value, and whether or not it's a recognized token type
-    def set_type(self, puzzle:LogicPuzzle):
+    def set_type(self, puzzle):
         if self.is_inflexible_token():
             self.tok_type = self.get_inflexible_tok_type()
             self.valid = True
@@ -69,7 +69,7 @@ class Token():
     
     # Element is defined as a (category,value) tuple for a value in a category of the logic puzzle
     # Given a value (the token), check to make sure it's in the puzzled and return the category and value
-    def get_element(self, puzzle:LogicPuzzle, value=None):
+    def get_element(self, puzzle, value=None):
         if value is None:
             value = self.value
 
@@ -86,7 +86,7 @@ class Token():
         return None
 
     # Given an token that doesn't fit in any otehr category, check to see if it's a valid element
-    def validate_element_token(self, puzzle:LogicPuzzle):
+    def validate_element_token(self, puzzle):
         unit = self.get_element(puzzle)
         if unit is None:
             return
@@ -99,7 +99,7 @@ class Token():
     # Get rid of the edges, which should be brackets, split on commas, then check to make sure each 
     # element of the list is a valid Element token
     # Set the list of (category,value) pairs as the token 
-    def validate_list_token(self, puzzle:LogicPuzzle):
+    def validate_list_token(self, puzzle):
         tok = self.value
         if tok[0] != "[" or tok[-1] != "]":
             return
@@ -122,7 +122,7 @@ class Token():
     # For example, el_A,cat_B represents the set of elements in category B, related to element A (which is a member of category A)
     # This token is used when dealing with a category B that contains numerical values
     # Sets the token value to (cat_A, el_A, cat_B) to indicate which set of el_B items to map to
-    def validate_pair_token(self, puzzle:LogicPuzzle):
+    def validate_pair_token(self, puzzle):
         el_A, cat_B = self.value.split(",")
         unit = self.get_element(puzzle, el_A)
 
