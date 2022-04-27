@@ -49,7 +49,7 @@ class LogicPuzzle:
             return
 
         try:
-            validated_rules = self.rp.get_validated_rules(self.rule_f_name, self)
+            validated_rules = self.parser.get_validated_rules(self.rule_f_name, self)
             self.set_rules(validated_rules)
         except InvalidTokenException as e:
             print("Invalid Token Exception")
