@@ -68,7 +68,7 @@ class LogicPuzzle:
         rule_dict = {}
         rule_dict[1] = self.a_is_b
         rule_dict[2] = self.a_is_not_b
-        rule_dict[3] = self.exclusive_or
+        rule_dict[3] = self.one_to_many
         rule_dict[4] = self.list_to_list
         rule_dict[5] = self.a_greater_than_b
 
