@@ -45,10 +45,10 @@ class LogicPuzzleTest(unittest.TestCase):
         assert( lp.rules[1][0] == lp.a_is_not_b )
         assert( lp.rules[1][1] == ["A","a2","B","b3"] )
 
-        assert( lp.rules[2][0] == lp.exclusive_or )
+        assert( lp.rules[2][0] == lp.one_to_many )
         assert( lp.rules[2][1] == ["A","a2",[("B","b2"),("C",1.0)]] )
 
-        assert( lp.rules[3][0] == lp.list_to_list )
+        assert( lp.rules[3][0] == lp.many_to_many )
         assert( lp.rules[3][1] == [[("A","a1"),("B","b2")],[("B","b1"),("C",2.0)]] )
 
         assert( lp.rules[4][0] == lp.a_greater_than_b )
@@ -73,10 +73,10 @@ class LogicPuzzleTest(unittest.TestCase):
         assert( lp.rules[1][0] == lp.a_is_not_b )
         assert( lp.rules[1][1] == ["A","a2","B","b3"] )
 
-        assert( lp.rules[2][0] == lp.exclusive_or )
+        assert( lp.rules[2][0] == lp.one_to_many )
         assert( lp.rules[2][1] == ["A","a2",[("B","b2"),("C",1.0)]] )
 
-        assert( lp.rules[3][0] == lp.list_to_list )
+        assert( lp.rules[3][0] == lp.many_to_many )
         assert( lp.rules[3][1] == [[("A","a1"),("B","b2")],[("B","b1"),("C",2.0)]] )
 
         assert( lp.rules[4][0] == lp.a_greater_than_b )
@@ -169,6 +169,72 @@ class LogicPuzzleTest(unittest.TestCase):
             lp.full_sets[key] = set([ lp.full_sets[key].pop() ])
         assert( lp.is_complete() )
 
+    def test_check_single_category_list(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        # Check a case that should remain unchanged
+        # i.e. list of multiple categories
+        lp.check_single_category_list("A", "a1", [("B","b1"), ("C",1.0)])
+        for cat_A, el_A, cat_B in lp.full_sets:
+            # Each set should still have the full set of possibilities
+            assert( lp.full_sets[(cat_A, el_A, cat_B)] == lp.category_values[cat_B] )
+        
+        # Now check where the elements are in the same category
+        lp.check_single_category_list("A", "a1", [("B","b1"), ("B","b2")])
+        for cat_A, el_A, cat_B in lp.full_sets:
+            if (cat_A, el_A, cat_B) == ("A", "a1", "B"):
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set( [ "b1", "b2" ] ) )
+            else:
+                # Other sets should still have the full set of possibilities
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == lp.category_values[cat_B] )
+
+    def test_multi_exclusion(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        lp.multi_exclusion([("B", "b1"), ("C",1.0), ("C",2.0)])
+        for cat_A, el_A, cat_B in lp.full_sets:
+            if (cat_A, el_A, cat_B) == ("B","b1","C"):
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set([3.0]) )
+            elif (cat_A, el_A, cat_B) == ("C", 1.0, "B") or (cat_A, el_A, cat_B) == ("C", 2.0, "B"):
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set(["b2","b3"]) )
+            else:
+                # Other sets should still have the full set of possibilities
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == lp.category_values[cat_B] )
+
+    def test_check_possibilities(self):
+        lp = LogicPuzzle()
+        lp.read_categories( os.path.join("tests", "categories1.txt") )
+        lp.create_sets()
+
+        # Check a case that should remain unchanged
+        # i.e. No other rules have been run, so everything is still possible
+        lp.check_possibilities("A", "a1", [("B","b1"), ("C",1.0)])
+        for cat_A, el_A, cat_B in lp.full_sets:
+            # Each set should still have the full set of possibilities
+            assert( lp.full_sets[(cat_A, el_A, cat_B)] == lp.category_values[cat_B] )
+        
+        # Now just remove "b1" from ("A","A1","B")
+        lp.full_sets[("A","a1","B")].remove("b1")
+        lp.check_possibilities("A", "a1", [("B","b1"), ("C",1.0)])
+        for cat_A, el_A, cat_B in lp.full_sets:
+            if (cat_A, el_A, cat_B) == ("A","a1","B"):
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set(["b2","b3"]) )
+            elif (cat_A, el_A, cat_B) == ("A","a1","C"):
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set([1.0]) )
+            elif cat_A == "A" and cat_B == "C":
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set([2.0,3.0]) )
+            elif (cat_A, el_A, cat_B) == ("C",1.0,"A"):
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set(["a1"]) )
+            elif cat_A == "C" and cat_B == "A":
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set(["a2","a3"]) )
+            else:
+                # Each set should still have the full set of possibilities
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == lp.category_values[cat_B] )
+
     ##### Test Rule Functions ######################################################################################################
 
     def test_a_is_not_b(self):
@@ -209,8 +275,8 @@ class LogicPuzzleTest(unittest.TestCase):
                 assert( len( lp.full_sets[key] ) == 2 )
             else:
                 assert( len( lp.full_sets[key] ) == 3 )
-    
-    def test_exclusive_or(self):
+
+    def test_one_to_many(self):
         lp = LogicPuzzle()
         lp.read_categories( os.path.join("tests", "categories1.txt") )
         lp.create_sets()
@@ -218,7 +284,7 @@ class LogicPuzzleTest(unittest.TestCase):
         set_key_B = ("B", "b1", "C")
         set_key_C = ("C", 1.0, "B")
 
-        lp.exclusive_or("A","a1","B","b1","C",1.0)
+        lp.one_to_many("A","a1",[("B","b1"),("C",1.0)])
 
         assert( lp.full_sets[ set_key_B ] == set( [2.0, 3.0] ) )
         assert( lp.full_sets[ set_key_C ] == set( ["b2", "b3"] ) )
@@ -227,7 +293,7 @@ class LogicPuzzleTest(unittest.TestCase):
                 assert( len( lp.full_sets[key] ) == 3 )
         
         lp.full_sets[ ("A", "a1", "B") ].remove("b1")
-        lp.exclusive_or("A","a1","B","b1","C",1.0)
+        lp.one_to_many("A","a1",[("B","b1"),("C",1.0)])
 
         assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
         assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
@@ -239,7 +305,7 @@ class LogicPuzzleTest(unittest.TestCase):
         assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
         assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
 
-        assert( lp.full_sets[("B","b1","A")] == set(["a2", "a3"]) )
+        assert( lp.full_sets[("B","b1","A")] == set(["a1","a2", "a3"]) )            # Reflexive exclusion logic will eliminate "a1" later
         assert( lp.full_sets[("B","b2","A")] == set(["a1", "a2", "a3"]) )
         assert( lp.full_sets[("B","b3","A")] == set(["a1", "a2", "a3"]) )
         assert( lp.full_sets[("C",1.0,"A")] == set(["a1"]) )
@@ -249,23 +315,33 @@ class LogicPuzzleTest(unittest.TestCase):
         assert( lp.full_sets[("C",2.0,"B")] == set(["b1", "b2", "b3"]) )
         assert( lp.full_sets[("C",3.0,"B")] == set(["b1", "b2", "b3"]) )
 
-    def test_list_to_list(self):
+        # Now check where the elements are in the same category
+        lp.create_sets()
+        lp.one_to_many("A", "a1", [("B","b1"), ("B","b2")])
+        for cat_A, el_A, cat_B in lp.full_sets:
+            if (cat_A, el_A, cat_B) == ("A", "a1", "B"):
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == set( [ "b1", "b2" ] ) )
+            else:
+                # Other sets should still have the full set of possibilities
+                assert( lp.full_sets[(cat_A, el_A, cat_B)] == lp.category_values[cat_B] )
+
+    def test_many_to_many(self):
         lp = LogicPuzzle()
         lp.read_categories( os.path.join("tests", "categories1.txt") )
         lp.create_sets()
 
         N_star = [("A","a1"), ("B","b1")]
-        M_star = [("C","c1"), ("C","c2")]
+        M_star = [("C",1.0), ("C",2.0)]
 
-        lp.list_to_list(N_star, M_star)
+        lp.many_to_many(N_star, M_star)
 
         assert( lp.full_sets[("A","a1","B")] == set(["b2", "b3"]) )
         assert( lp.full_sets[("A","a2","B")] == set(["b1", "b2", "b3"]) )
         assert( lp.full_sets[("A","a3","B")] == set(["b1", "b2", "b3"]) )
-        assert( lp.full_sets[("A","a1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("A","a1","C")] == set([1.0, 2.0]) )
         assert( lp.full_sets[("A","a2","C")] == set([1.0, 2.0, 3.0]) )
         assert( lp.full_sets[("A","a3","C")] == set([1.0, 2.0, 3.0]) )
-        assert( lp.full_sets[("B","b1","C")] == set([1.0, 2.0, 3.0]) )
+        assert( lp.full_sets[("B","b1","C")] == set([1.0, 2.0]) )
         assert( lp.full_sets[("B","b2","C")] == set([1.0, 2.0, 3.0]) )
         assert( lp.full_sets[("B","b3","C")] == set([1.0, 2.0, 3.0]) )
 
