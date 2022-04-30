@@ -1,4 +1,5 @@
 import numpy as np
+from prettytable import PrettyTable
 import pandas as pd
 from RuleParser import RuleParser, InvalidTokenException, UnexpectedTokenException, MissingTokenException
 from Token import TokenType
@@ -12,19 +13,20 @@ class LogicPuzzle:
         self.parser = RuleParser()          # parser to tokenize, and validate rules
         self.rule_f_name = rule_f_name      # File where the rules are stored
         self.rules = []                     # list of rules. Each rule is a tuple of (function, parameters)
+        self.key_category = None
 
         if not category_f_name is None:
             self.read_categories(category_f_name)
         if not rule_f_name is None:
-            self.read_rules(rule_f_name)
+            self.read_rules()
         
         self.create_sets()
     
     ##### Setup Functions ##############################################################################################################
 
-    def read_categories(self, f_name):
+    def read_categories(self, category_f_name):
         try:
-            f = open(f_name)
+            f = open(category_f_name)
             for line in f:
                 row = line.split(":")
                 title = row[0].strip()
@@ -39,6 +41,8 @@ class LogicPuzzle:
 
                 self.categories.append( title )
                 self.category_values[ title ] = values
+                if self.key_category is None:
+                    self.key_category = title
             
             f.close()
         except:
@@ -112,6 +116,12 @@ class LogicPuzzle:
                     self.full_sets[ ( cat_B, val, cat_A ) ] = set( self.category_values[ cat_A ] )
 
     ##### Auxilliary Functions #########################################################################################################
+
+    def contains_empty_sets(self):
+        for key in self.full_sets:
+            if self.full_sets[key] == set():
+                return True
+        return False
 
     # Check the first element of a set (useful when the cardinality of a is 1)
     def peek(a):
@@ -255,6 +265,9 @@ class LogicPuzzle:
         # If this set is only one element, set it
         # Unfortunately, this will be redundant in the case than all categories are the same (since check_single_category has been run)
         self.check_possibilities(cat_A, el_A, M_star)
+
+        self.reflexive_inclusion()
+        self.reflexive_exclusion()
     
     # Rule 4
     # Given a list of (category, element) tuples (N_star), and a similar list for M_star
@@ -277,7 +290,27 @@ class LogicPuzzle:
         self.full_sets[ (cat_A, el_A, cat_C) ] = sub_a
         self.full_sets[ (cat_B, el_B, cat_C) ] = sub_b
 
+        self.reflexive_inclusion()
+        self.reflexive_exclusion()
+
     ##### General Logic Functions ######################################################################################################
+
+    # Run all the loaded rules
+    def rule_sweep(self, intermediate_logic=True):
+        for func, params in self.rules:
+            func(*params)
+
+            if intermediate_logic:
+                # Run logic between each evaluation of rules
+                self.logic_sweep()
+
+    # Run all logic functions
+    def logic_sweep(self):
+        self.reflexive_inclusion()
+        self.reflexive_exclusion()
+        self.link_inclusion()
+        self.link_exclusion()
+        self.n_of_n()
 
     # If (cat_A, el_A, cat_B) = el_B, then (cat_B, el_B, cat_A) = el_A
     def reflexive_inclusion(self):
@@ -315,7 +348,6 @@ class LogicPuzzle:
                     seed |= self.full_sets[(cat_B, el_B, cat_C)]
                 self.full_sets[(cat_A, el_A, cat_C)] &= seed
                         
-
     # If el_B is not in (cat_A, el_A, cat_B), and (cat_B, el_B, cat_C) = el_C
     # then (cat_A, el_A, cat_C) -= (cat_B_, el_B, cat_C)
     def link_exclusion(self):
@@ -328,3 +360,81 @@ class LogicPuzzle:
                     if len(c_set) == 1:
                         # If A,a1 is not B,b1, but we know B,b1 is C,c1, then we know A,a1 cannot be C,c1
                         self.full_sets[(cat_A, el_A, cat_C)] -= c_set
+
+    # If n (of el_A) sets in (cat_A, el_A, cat_B) have the same n values, then exclude those n values from the remaining el_A values
+    def n_of_n(self):
+        for cat_A, cat_B in itertools.permutations(self.categories,2):
+            max_els = len( self.category_values[cat_B] )
+            n_sets = {}
+            for el_A in self.category_values[cat_A]:
+                key = (cat_A,el_A,cat_B)
+                temp = tuple(self.full_sets[key])
+                if len(temp) == max_els:
+                    continue
+                if not temp in n_sets:
+                    n_sets[temp] = set( self.category_values[cat_A] )
+                
+                n_sets[temp].remove( el_A )
+
+            for element_set in n_sets:
+                key_sets = n_sets[element_set]
+                if len(key_sets) == max_els - len(element_set):
+                    for el_A in key_sets:
+                        for el_B in element_set:
+                            #print( " - ".join([str(cat_A), str(el_A), str(cat_B), str(el_B)]) )
+                            self.a_is_not_b(cat_A, el_A, cat_B, el_B)
+    
+    ##### GAMEPLAY #####################################################################################################################
+
+    def solve(self, intermediate_logic=True):
+        changed = True
+        sweeps = 0
+
+        while changed:
+            prev = dict( self.full_sets )
+            self.rule_sweep(intermediate_logic)
+            if not intermediate_logic:
+                self.logic_sweep()                      # No need to do this if I'm running it after each rule
+            changed = ( prev != self.full_sets )
+            sweeps += 1
+            if self.is_complete():
+                break
+        
+        print("Iterations: ",sweeps)
+        if self.is_complete():
+            print("Solved!")
+            self.show_grid()
+        else:
+            print("Not solved...")
+
+    def get_grid(self, separate_title=False):
+        if self.key_category is None:
+            return
+        
+        titles = [self.key_category]
+        for title in self.categories:
+            if title != self.key_category:
+                titles.append( title )
+        
+        data = [ [ str(val) for val in self.category_values[self.key_category] ] ]
+        for category in titles[1:]:
+            row = []
+            for key_element in self.category_values[self.key_category]:
+                res = self.full_sets[(self.key_category, key_element, category)]
+                if len(res) == 1:
+                    row.append( str( LogicPuzzle.peek(res) ) )
+                else:
+                    row.append( "" )
+            data.append(row)
+        
+        data = np.array(data).T
+        if separate_title:
+            return titles, data
+        return np.vstack([title,data])
+
+    def show_grid(self):
+        titles, data = self.get_grid(separate_title=True)
+        tab = PrettyTable(titles)
+        for row in data:
+            tab.add_row(row)
+        print(tab)
