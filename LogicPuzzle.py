@@ -386,7 +386,7 @@ class LogicPuzzle:
     
     ##### GAMEPLAY #####################################################################################################################
 
-    def solve(self, intermediate_logic=True):
+    def solve(self, intermediate_logic=True, show=True, return_results=False):
         changed = True
         sweeps = 0
 
@@ -400,12 +400,16 @@ class LogicPuzzle:
             if self.is_complete():
                 break
         
-        print("Iterations: ",sweeps)
-        if self.is_complete():
-            print("Solved!")
-            self.show_grid()
-        else:
-            print("Not solved...")
+        if show:
+            print("Iterations: ",sweeps)
+            if self.is_complete():
+                print("Solved!")
+                self.show_grid()
+            else:
+                print("Not solved...")
+
+        if return_results:
+            return self.is_complete(), sweeps, self.get_printable_grid()
 
     def get_grid(self, separate_title=False):
         if self.key_category is None:
@@ -432,9 +436,13 @@ class LogicPuzzle:
             return titles, data
         return np.vstack([title,data])
 
-    def show_grid(self):
+    def get_printable_grid(self):
         titles, data = self.get_grid(separate_title=True)
         tab = PrettyTable(titles)
         for row in data:
             tab.add_row(row)
+        return tab
+
+    def show_grid(self):
+        tab = self.get_printable_grid()
         print(tab)
