@@ -1,0 +1,4 @@
+Client:Caroline,Debra,Ginger,Hannah,Inez
+Masseus:Kara,Olivia,Sharon,Whitney,Yvonne
+Massage:Ayur,Stone,Prenatal,Reflexology,Shiatsu
+Price:150,160,170,180,190

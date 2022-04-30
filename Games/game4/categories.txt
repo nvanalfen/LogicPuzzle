@@ -1,0 +1,4 @@
+House:Belle,Fox,Leiman,Porcher,Roesch
+Owner:Christian,Frazier,Odom,Tran,Underwood
+Location:Ash,Buffalo,Rosewood,Vine,York
+Year:1834,1841,1848,1855,1862

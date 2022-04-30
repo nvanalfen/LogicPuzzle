@@ -1,0 +1,7 @@
+Pam = juicer
+[Mitch,juicer] = [Price:475,Price:450]
+Kit = [juicer,Price:400]
+Ned = [Price:475,blender]
+Price:475 != planter
+Mitch,Price = blender,Price + 50
+Price:500 = bluray

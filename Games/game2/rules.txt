@@ -1,0 +1,9 @@
+Garrett = Lena
+Crystal,Time = Irene,Time + 1
+Arnold != Yoga
+Crystal = Cardio
+Nicholas,Time = Yoga,Time + 1
+[Time:11.5,Lena] = [Weights,Emma]
+Garrett,Time > Emma,Time
+Cycling = [Time:8.5,Time:10.5]
+Irene,Time = Howard,Time + 1

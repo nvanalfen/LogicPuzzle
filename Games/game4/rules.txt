@@ -1,0 +1,11 @@
+Rosewood = [Frazier,Odom]
+Year:1848 = Ash
+[Buffalo,Year:1855] = [Porcher,Odom]
+Vine != Tran
+York,Year = Roesch,Year + 21
+Rosewood,Year = Vine,Year + 21
+Ash,Year > Belle,Year
+Rosewood != Leiman
+Ash != Leiman
+Year:1862 != Tran
+Year:1862 != Christian

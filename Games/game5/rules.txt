@@ -1,0 +1,9 @@
+Caroline = Price:190
+Ayur = Whitney
+[Price:160,Caroline] = [Yvonne,Whitney]
+[Inez,Olivia] = [Shiatsu,Price:150]
+Price:190 != Prenatal
+Reflexology != Sharon
+Reflexology,Price > Hannah,Price
+Price:190 = [Yvonne,Ginger]
+Debra,Price > Reflexology,Price

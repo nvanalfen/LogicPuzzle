@@ -1,0 +1,4 @@
+Customer:Arnold,Crystal,Danny,Emma,Garrett
+Time:8.5,9.5,10.5,11.5,12.5
+Trainer:Howard,Irene,Lena,Michelle,Nicholas
+Program:Cardio,Cycling,Weights,Racketball,Yoga

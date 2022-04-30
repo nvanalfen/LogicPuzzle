@@ -1,0 +1,8 @@
+Sent:1983 = Plymouth
+Bernadette != Found:2006
+Bernadette != Bournemouth
+Bournemouth != Found:2006
+Sent:1969 = [Found:2007,Edwin]
+Tracy = Sent:1976
+[Found:2012,Sent:1983] = [Edwin,LeHavre]
+Found:2007,Sent = Penzance,Sent + 7

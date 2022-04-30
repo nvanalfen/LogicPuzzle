@@ -1,0 +1,3 @@
+Attendees:Jack,Kit,Mitch,Ned,Pam
+Gifts:blender,bluray,juicer,planter,toaster
+Price:400,425,450,475,500
