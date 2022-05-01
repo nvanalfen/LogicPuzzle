@@ -26,46 +26,40 @@ class LogicPuzzle:
 
     def read_categories(self, category_f_name):
         try:
+            lines = []
             f = open(category_f_name)
             for line in f:
-                row = line.split(":")
-                title = row[0].strip()
-                values = set( [ val.strip() for val in row[1].split(",") ] )
-
-                # Try to cast values to float, otherwise stay categorical
-                try:
-                    temp = set( [ float(val) for val in values ] )
-                    values = temp
-                except:
-                    pass
-
-                self.categories.append( title )
-                self.category_values[ title ] = values
-                if self.key_category is None:
-                    self.key_category = title
+                lines.append(line)
             
             f.close()
+            self.set_categories(lines)
         except:
             print("Error")
+
+    def set_categories(self, lines):
+        for line in lines:
+            row = line.split(":")
+            title = row[0].strip()
+            values = set( [ val.strip() for val in row[1].split(",") ] )
+
+            # Try to cast values to float, otherwise stay categorical
+            try:
+                temp = set( [ float(val) for val in values ] )
+                values = temp
+            except:
+                pass
+
+            self.categories.append( title )
+            self.category_values[ title ] = values
+            if self.key_category is None:
+                self.key_category = title
 
     def read_rules(self):
         if self.rule_f_name is None:
             return
 
-        try:
-            validated_rules = self.parser.get_validated_rules(self.rule_f_name, self)
-            self.set_rules(validated_rules)
-        except InvalidTokenException as e:
-            print("Invalid Token Exception")
-            print( str(e) )
-        except MissingTokenException as e:
-            print("Missing Token Exception")
-            print( str(e) )
-        except UnexpectedTokenException as e:
-            print("Unexpected Token Exception")
-            print( str(e) )
-        except:
-            print("Unknown error occurred")
+        validated_rules = self.parser.get_validated_rules(self.rule_f_name, self)
+        self.set_rules(validated_rules)
 
     # Given the validated tokens, build the list of functions calls and parameters to be called each loop
     def set_rules(self, validated):
@@ -75,6 +69,7 @@ class LogicPuzzle:
         rule_dict[3] = self.one_to_many
         rule_dict[4] = self.many_to_many
         rule_dict[5] = self.a_greater_than_b
+        rule_dict[6] = self.multi_exclusion             # Not fully a rule, just a shorthand for multiple a_is_not_many calls
 
         for line in validated:
             ind, args = line
@@ -116,6 +111,12 @@ class LogicPuzzle:
                     self.full_sets[ ( cat_B, val, cat_A ) ] = set( self.category_values[ cat_A ] )
 
     ##### Auxilliary Functions #########################################################################################################
+
+    def clone_sets(self):
+        clone = {}
+        for key in self.full_sets:
+            clone[key] = set(self.full_sets[key])
+        return clone
 
     def contains_empty_sets(self):
         for key in self.full_sets:
@@ -391,7 +392,7 @@ class LogicPuzzle:
         sweeps = 0
 
         while changed:
-            prev = dict( self.full_sets )
+            prev = self.clone_sets()
             self.rule_sweep(intermediate_logic)
             if not intermediate_logic:
                 self.logic_sweep()                      # No need to do this if I'm running it after each rule

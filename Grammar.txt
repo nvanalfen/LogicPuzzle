@@ -7,3 +7,4 @@
 4:LIST,=,LIST
 5:PAIR,>,PAIR
 5:PAIR,=,PAIR,+,#
+6:LIST
